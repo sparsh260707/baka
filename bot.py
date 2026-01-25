@@ -1,5 +1,5 @@
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, ContextTypes
+from telegram.ext import Application, CommandHandler, ContextTypes, CallbackQueryHandler
 
 from config import BOT_TOKEN
 
@@ -13,7 +13,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Inline buttons (2x2 grid + 1 full-width button)
     keyboard = [
         [
-            InlineKeyboardButton("💬 Talk to Baka", url="https://t.me/codebotnetwork"),
+            InlineKeyboardButton("💬 Talk to Baka", callback_data="talk_baka"),
             InlineKeyboardButton("✨ ⏤͟͞ 𝙎𝙋𝘼𝙍𝙎𝙃 𝘽𝘼𝙉𝙄𝙔𝘼", url="https://t.me/oye_sparsh")
         ],
         [
@@ -33,16 +33,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 👇 Choose An Option Below:"""
 
-    # If command is used in a group/channel
+    # Group vs private chat handling
     if update.effective_chat.type != "private":
-        # Notify user to open private chat
         await update.message.reply_text(
             "📩 Check your private chat to start!",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("💬 Open Private", url=f"https://t.me/{context.bot.username}")]
             ])
         )
-        # Send main start message in private
         await context.bot.send_message(
             chat_id=user.id,
             text=text,
@@ -50,12 +48,19 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode="Markdown"
         )
     else:
-        # Private chat: send start message directly
         await update.message.reply_text(
             text=text,
             reply_markup=reply_markup,
             parse_mode="Markdown"
         )
+
+# ================== CALLBACK QUERY HANDLER ==================
+async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()  # Acknowledge button press
+
+    if query.data == "talk_baka":
+        await query.message.reply_text("Hey Qt! How are you? 💕")
 
 # ================== MAIN BOT SETUP ==================
 def main():
@@ -68,6 +73,9 @@ def main():
     app.add_handler(CommandHandler("kill", kill))
     app.add_handler(CommandHandler("revive", revive))
     app.add_handler(CommandHandler("protect", protect))
+
+    # Callback for inline buttons
+    app.add_handler(CallbackQueryHandler(button_handler))
 
     print("🤖 Bot is running...")
     app.run_polling()
