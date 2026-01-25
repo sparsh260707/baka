@@ -1,50 +1,64 @@
-import time, random
+import time
+import random
 from telegram import Update
 from telegram.ext import ContextTypes
-from database.db import load, save, get_user
 
-# ================= HELPERS =================
+# ========= DATABASE =========
 
-def is_dead(u):
-    return time.time() < u["dead_until"]
+DB_FILE = "database.json"
 
-def is_protected(u):
-    return time.time() < u["protect_until"]
+import json
 
-def salary(u):
-    if time.time() - u["last_salary"] > 12 * 3600:
-        u["bal"] += 50
-        u["last_salary"] = time.time()
+def load():
+    try:
+        with open(DB_FILE, "r") as f:
+            return json.load(f)
+    except:
+        return {}
+
+def save(data):
+    with open(DB_FILE, "w") as f:
+        json.dump(data, f, indent=2)
+
+def now():
+    return int(time.time())
+
+# ========= USER SYSTEM =========
+
+def get_user(data, tg_user):
+    uid = str(tg_user.id)
+    if uid not in data:
+        data[uid] = {
+            "id": uid,
+            "name": tg_user.first_name,
+            "bal": 0,
+            "kills": 0,
+            "dead_until": 0,
+            "protect_until": 0,
+            "last_salary": 0
+        }
+    return data[uid]
 
 def fancy_name(user):
     return f"⏤͟͞ {user.first_name.upper()}"
 
-# ================= COMMANDS =================
+def is_dead(u):
+    return u["dead_until"] > now()
 
-async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    data = load()
-    get_user(data, update.effective_user)
-    save(data)
-    await update.message.reply_text("🎮 Economy Crime Game Started!\nType /economy")
+def is_protected(u):
+    return u["protect_until"] > now()
 
-async def economy(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    await update.message.reply_text("""
-📖 Economy Commands:
-/bal (or reply)
-/rob (reply)
-/kill (reply)
-/revive (or reply)
-/protect 1d
-/give (reply) amount
-/toprich
-""")
+def salary(u):
+    if now() - u["last_salary"] >= 12 * 60 * 60:
+        u["bal"] += 50
+        u["last_salary"] = now()
 
-# ============ /bal ============
+# ========= COMMANDS =========
 
+# /bal
 async def bal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = load()
 
-    # self or reply
     if update.message.reply_to_message:
         target_user = update.message.reply_to_message.from_user
     else:
@@ -68,8 +82,7 @@ async def bal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     save(data)
     await update.message.reply_text(msg)
 
-# ============ /rob ============
-
+# /rob
 async def rob(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message.reply_to_message:
         return await update.message.reply_text("Reply to someone to rob.")
@@ -82,33 +95,31 @@ async def rob(update: Update, context: ContextTypes.DEFAULT_TYPE):
     robber = get_user(data, robber_user)
     victim = get_user(data, victim_user)
 
-    salary(robber)
-
     if is_dead(robber):
-        return await update.message.reply_text("☠️ You are dead.")
+        return await update.message.reply_text("❌ You are dead.")
+
+    if is_dead(victim):
+        return await update.message.reply_text("❌ This user is already dead.")
 
     if is_protected(victim):
-        return await update.message.reply_text("🛡️ Victim is protected right now!")
+        return await update.message.reply_text("🛡️ This user is protected.")
 
-    if victim["bal"] < 1:
-        return await update.message.reply_text("Target is too poor 😂")
+    if victim["bal"] <= 0:
+        return await update.message.reply_text("❌ This user has no money.")
 
-    steal = random.randint(1, victim["bal"])
-    gain = int(steal * 0.9)
+    amount = min(victim["bal"], random.randint(10, 100))
+    gained = int(amount * 0.9)
 
-    victim["bal"] -= steal
-    robber["bal"] += gain
-    robber["rob"] += 1
+    victim["bal"] -= amount
+    robber["bal"] += gained
 
     save(data)
 
-    msg = f"""👤 {fancy_name(robber_user)} robbed ${steal} from {victim_user.first_name}
-💰 gained: ${gain}"""
-
+    msg = f"""👤 {fancy_name(robber_user)} robbed ${amount} from {victim_user.first_name}
+💰 gained: ${gained}"""
     await update.message.reply_text(msg)
 
-# ============ /kill ============
-
+# /kill
 async def kill(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message.reply_to_message:
         return await update.message.reply_text("Reply to someone to kill.")
@@ -121,24 +132,28 @@ async def kill(update: Update, context: ContextTypes.DEFAULT_TYPE):
     killer = get_user(data, killer_user)
     victim = get_user(data, victim_user)
 
+    if is_dead(killer):
+        return await update.message.reply_text("❌ You are dead.")
+
+    if is_dead(victim):
+        return await update.message.reply_text("❌ This user is already dead.")
+
     if is_protected(victim):
-        return await update.message.reply_text("🛡️ Victim is protected right now!")
+        return await update.message.reply_text("🛡️ This user is protected.")
+
+    victim["dead_until"] = now() + 5 * 60 * 60
 
     reward = random.randint(50, 200)
-
-    victim["dead_until"] = time.time() + 5 * 3600
-    killer["kills"] += 1
     killer["bal"] += reward
+    killer["kills"] += 1
 
     save(data)
 
     msg = f"""👤 {fancy_name(killer_user)} killed {victim_user.first_name}!
 💰 Earned: ${reward}"""
-
     await update.message.reply_text(msg)
 
-# ============ /revive ============
-
+# /revive
 async def revive(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = load()
 
@@ -180,63 +195,26 @@ async def revive(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = f"❤️ {fancy_name(reviver_user)} revived {target_user.first_name}! -$500"
     await update.message.reply_text(msg)
 
-# ============ /protect ============
-
+# /protect
 async def protect(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    data = load()
+    user = update.effective_user
+    u = get_user(data, user)
+
     if not context.args:
         return await update.message.reply_text("⚠️ Usage: /protect 1d")
 
-    if context.args[0] != "1d":
-        return await update.message.reply_text("⚠️ Only 1d protection is available.")
+    days = context.args[0]
 
-    data = load()
-    u = get_user(data, update.effective_user)
+    if days != "1d":
+        return await update.message.reply_text("❌ Only 1d protection allowed.")
 
-    cost = 200
+    if u["bal"] < 200:
+        return await update.message.reply_text("❌ You need $200.")
 
-    if u["bal"] < cost:
-        return await update.message.reply_text("❌ Not enough money!")
-
-    u["bal"] -= cost
-    u["protect_until"] = time.time() + 86400
+    u["bal"] -= 200
+    u["protect_until"] = now() + 24 * 60 * 60
 
     save(data)
 
     await update.message.reply_text("🛡️ You are now protected for 1d.")
-
-# ============ /give ============
-
-async def give(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not update.message.reply_to_message or not context.args:
-        return await update.message.reply_text("Reply and give amount.")
-
-    try:
-        amt = int(context.args[0])
-    except:
-        return await update.message.reply_text("Invalid amount.")
-
-    data = load()
-    u1 = get_user(data, update.effective_user)
-    u2 = get_user(data, update.message.reply_to_message.from_user)
-
-    if u1["bal"] < amt:
-        return await update.message.reply_text("Not enough money.")
-
-    u1["bal"] -= amt
-    u2["bal"] += amt
-
-    save(data)
-    await update.message.reply_text("🎁 Money sent!")
-
-# ============ /toprich ============
-
-async def toprich(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    data = load()
-
-    top = sorted(data.values(), key=lambda x: x["bal"], reverse=True)[:10]
-
-    msg = "🌍 Top 10 Richest:\n"
-    for i, u in enumerate(top, 1):
-        msg += f"{i}. {u['name']} — ${u['bal']}\n"
-
-    await update.message.reply_text(msg)
