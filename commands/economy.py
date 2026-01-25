@@ -21,6 +21,15 @@ def is_dead(user):
 def is_protected(user):
     return user.get("protect_until", 0) > now()
 
+async def is_user_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Check if user is admin or creator of the group."""
+    chat_id = update.effective_chat.id
+    user_id = update.effective_user.id
+    if update.effective_chat.type == "private":
+        return True
+    member = await context.bot.get_chat_member(chat_id, user_id)
+    return member.status in ["administrator", "creator"]
+    
 # ===== DATABASE HELPERS (Updated for MongoDB) =====
 def get_user_data(user_id, user_obj=None):
     """MongoDB se user ka fresh data fetch karta hai."""
