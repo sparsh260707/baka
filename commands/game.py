@@ -19,9 +19,9 @@ async def claim(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Fetch members count safely
     try:
-        chat_info = await context.bot.get_chat(chat.id)
-        members_count = chat_info.get('members_count', 0)
-    except:
+        members_count = await context.bot.get_chat_member_count(chat.id)
+    except Exception as e:
+        print(f"Error fetching members count: {e}")
         members_count = 0
 
     if members_count < 100:
@@ -30,9 +30,9 @@ async def claim(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Load database
     data = load()
-    user = get_user(data, user_obj)
+    user = get_user(data, user_obj)  # ensures user exists in DB
 
-    # Dynamic reward: 1 coin per 10 members, min 100
+    # Dynamic reward: 1 coin per 10 members, minimum 100
     reward = max(100, members_count // 10)
 
     user["bal"] = user.get("bal", 200) + reward
@@ -45,7 +45,7 @@ async def daily(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat = update.effective_chat
     user_obj = update.effective_user
 
-    # Only in DM
+    # Only in private chat
     if chat.type != "private":
         await update.message.reply_text("⚠️ You can claim daily reward in DM only.")
         return
@@ -64,7 +64,7 @@ async def daily(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
     # Give daily reward
-    user["bal"] += 1000
+    user["bal"] = user.get("bal", 0) + 1000
     user["last_daily"] = now
     save(data)
 
