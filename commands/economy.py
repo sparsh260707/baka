@@ -41,6 +41,19 @@ def get_all_users():
     """MongoDB se saare users ki list nikaalta hai."""
     return list(users_col.find())
 
+# ===== ADMIN COMMANDS: /open & /close =====
+async def close_economy(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await is_user_admin(update, context):
+        return await update.message.reply_text("❌ Only admins can close the economy.")
+    set_economy_status(update.effective_chat.id, False)
+    await update.message.reply_text("⚠️ Economy system is now CLOSED. Only admins can use commands.\nReopen use: /open")
+
+async def open_economy(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await is_user_admin(update, context):
+        return await update.message.reply_text("❌ Only admins can open the economy.")
+    set_economy_status(update.effective_chat.id, True)
+    await update.message.reply_text("✅ Economy system is now OPEN for everyone!")
+    
 # ===== /bal =====
 async def bal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_obj = update.effective_user
