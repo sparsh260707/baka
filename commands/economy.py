@@ -1,11 +1,8 @@
-# economy.py
-# Final BAKA Economy Commands
-
 import time
 import random
 from telegram import Update
 from telegram.ext import ContextTypes
-from db import get_user_data, update_user_data  # your db.py methods
+from database.db import load, save, get_user  # Correct import
 
 # ===== TIME UTILS =====
 def now():
