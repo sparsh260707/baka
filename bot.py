@@ -1,16 +1,22 @@
 # bot.py
-# Final BAKA Bot - Economy + AI Chatbot + Stickers + Emoji + Models
+# Final BAKA Bot - Economy + AI Chatbot + Stickers + Emoji + Models + /start image
 
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+import os
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputFile
 from telegram.ext import (
     Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 )
-from config import BOT_TOKEN
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+START_IMAGE_URL = os.getenv("START_IMAGE_URL", "")
 
 # Economy commands
 from commands.economy import bal, rob, kill, revive, protect
 
-# AI chatbot
+# AI Chatbot
 from commands.chatbot import ask_ai, ai_message_handler
 
 # ================== /START COMMAND ==================
@@ -37,6 +43,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 👇 Choose An Option Below:"""
 
+    # If not private, ask user to check private
     if update.effective_chat.type != "private":
         await update.message.reply_text(
             "📩 Check your private chat to start!",
@@ -44,6 +51,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 [InlineKeyboardButton("💬 Open Private", url=f"https://t.me/{context.bot.username}")]
             ])
         )
+        # send private message
         await context.bot.send_message(
             chat_id=user.id,
             text=text,
@@ -51,11 +59,15 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             parse_mode="Markdown"
         )
     else:
-        await update.message.reply_text(
-            text=text,
-            reply_markup=reply_markup,
-            parse_mode="Markdown"
-        )
+        # Send image if exists
+        if START_IMAGE_URL:
+            if START_IMAGE_URL.startswith("http"):
+                await update.message.reply_photo(photo=START_IMAGE_URL, caption=text, reply_markup=reply_markup, parse_mode="Markdown")
+            else:
+                with open(START_IMAGE_URL, "rb") as f:
+                    await update.message.reply_photo(photo=InputFile(f), caption=text, reply_markup=reply_markup, parse_mode="Markdown")
+        else:
+            await update.message.reply_text(text=text, reply_markup=reply_markup, parse_mode="Markdown")
 
 # ================== CALLBACK QUERY HANDLER ==================
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
