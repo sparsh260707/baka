@@ -5,9 +5,6 @@ from dotenv import load_dotenv
 load_dotenv()
 
 MONGO_URL = os.getenv("MONGO_URL")
-if not MONGO_URL:
-    MONGO_URL = "mongodb://localhost:27017"
-
 client = pymongo.MongoClient(MONGO_URL)
 db = client["baka_bot_db"]
 users_col = db["users"]
@@ -43,10 +40,7 @@ def get_user(user, chat_id=None):
     return user_data
 
 def get_group_members(chat_id):
-    """NoneType error se bachne ke liye filter lagaya gaya hai."""
+    """NoneType error safety ke saath members fetch karta hai."""
     query = {"groups": chat_id}
     cursor = users_col.find(query)
-    
-    # Sirf wahi members lein jo None nahi hain
-    members = [u for u in cursor if u is not None]
-    return members
+    return [u for u in cursor if u is not None]
