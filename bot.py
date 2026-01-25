@@ -63,7 +63,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat.type != "private":
         await update.message.reply_text(
             "📩 Check your private chat to start!",
-            reply_markup=InlineKeyboardMarkup([[
+            reply_markup=InlineKeyboardMarkup([[ 
                 InlineKeyboardButton("💬 Open Private", url=f"https://t.me/{context.bot.username}")
             ]])
         )
@@ -105,6 +105,12 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Main thik hu, tum kaise ho? 😊\nYou can continue chatting with me here or type /ask <message>"
         )
 
+# ================== ERROR HANDLER ==================
+async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
+    print(f"❌ Error: {context.error}")
+    if hasattr(update, "message") and update.message:
+        await update.message.reply_text("⚠️ Something went wrong, try again!")
+
 # ================== MAIN ==================
 def main():
     app = Application.builder().token(BOT_TOKEN).build()
@@ -112,6 +118,7 @@ def main():
     # ================= BASIC =================
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(button_handler))
+    app.add_error_handler(error_handler)
 
     # ================= ECONOMY =================
     app.add_handler(CommandHandler("bal", bal))
