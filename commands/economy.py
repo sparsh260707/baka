@@ -44,25 +44,23 @@ def get_all_users():
 
 # ===== /bal =====
 async def bal(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    target_user = update.message.reply_to_message.from_user if update.message.reply_to_message else update.effective_user
-    user = get_user_data(target_user.id)
+    user_obj = update.effective_user
+    if update.message.reply_to_message:
+        user_obj = update.message.reply_to_message.from_user
 
-    if "bal" not in user:
-        user["bal"] = 200
+    # Database se fresh data lein
+    user_data = get_user(user_obj)
+    
+    # MongoDB se balance nikalein
+    current_bal = user_data.get("bal", 0)
 
-    all_users = get_all_users()
-    all_users.sort(key=lambda x: x.get("bal", 0), reverse=True)
-    rank = all_users.index(user) + 1 if user in all_users else 1
-
-    status = "dead" if is_dead(user) else "alive"
-    msg = f"""👤 Name: {target_user.first_name}
-💰 Balance: ${user['bal']}
-🏆 Global Rank: {rank}
-❤️ Status: {status}
-⚔️ Kills: {user.get('kills', 0)}"""
-    update_user_data(target_user.id, user)
-    await update.message.reply_text(msg)
-
+    text = (
+        f"👤 Name: {user_obj.first_name}\n"
+        f"💰 Balance: ${current_bal}\n"
+        f"🏆 Global Rank: 1\n"
+        f"❤️ Status: alive"
+    )
+    await update.message.reply_text(text)
 # ===== /toprich =====
 async def toprich(update: Update, context: ContextTypes.DEFAULT_TYPE):
     all_users = get_all_users()
