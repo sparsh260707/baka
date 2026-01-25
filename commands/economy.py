@@ -83,6 +83,7 @@ async def rob(update: Update, context: ContextTypes.DEFAULT_TYPE):
     robber = get_user_data(robber_user.id)
     victim = get_user_data(victim_user.id)
 
+    # Only robber sees their status messages
     if is_dead(robber):
         return await update.message.reply_text("❌ You are dead.")
     if is_dead(victim):
@@ -95,7 +96,7 @@ async def rob(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Optional amount
     try:
         amount = int(context.args[0])
-        if amount>victim.get("bal",0):
+        if amount > victim.get("bal",0):
             amount = victim.get("bal",0)
     except:
         amount = victim.get("bal",0)  # default: steal all
