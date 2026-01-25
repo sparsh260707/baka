@@ -90,10 +90,13 @@ def mark_group_claimed(chat_id, user_id):
 # --- ECONOMY CONTROL FUNCTIONS (Open/Close) ---
 
 def is_economy_on(chat_id):
-    """Check karta hai ki iss group ki economy ON hai ya OFF."""
+    """Sahi tareeke se status fetch karta hai."""
     res = settings_col.find_one({"chat_id": chat_id})
-    return res.get("economy_status", True) if res else True
-
+    # Agar data nahi hai toh default True (Open) rahega
+    if not res:
+        return True
+    return res.get("economy_status", True)
+    
 def set_economy_status(chat_id, status):
     """Economy status (True/False) ko update karta hai."""
     settings_col.update_one(
