@@ -1,7 +1,7 @@
 import json
 from pathlib import Path
 
-# DB file path (baka/database/users.json)
+# DB file path
 DB_FILE = Path("database/users.json")
 
 def load():
@@ -29,6 +29,7 @@ def get_user(user, chat_id=None):
     data = load()
     uid = str(user.id)
 
+    # Agar user naya hai
     if uid not in data:
         data[uid] = {
             "id": user.id,
@@ -41,25 +42,28 @@ def get_user(user, chat_id=None):
             "kills": 0,
             "rob": 0
         }
+    
+    # Purane users ke liye safety: Agar groups key missing hai toh banado
+    if "groups" not in data[uid]:
+        data[uid]["groups"] = []
 
-    # Chat ID ko register karna (taaki couple command me kaam aaye)
+    # Chat ID ko register karna
     if chat_id is not None:
-        if chat_id not in data[uid]["groups"]:
+        if chat_id not in data[uid]["groups"] and str(chat_id) not in data[uid]["groups"]:
             data[uid]["groups"].append(chat_id)
 
     save(data)
     return data[uid]
 
 def get_group_members(chat_id):
-    """Uss group ke saare members (Offline/Online) return karta hai."""
+    """Uss group ke saare members return karta hai."""
     data = load()
     members = []
     
-    # Target chat_id ko search karna
     for uid, user_data in data.items():
+        # .get use karne se 'groups' key missing hone par crash nahi hoga
         user_groups = user_data.get("groups", [])
         
-        # Check both int and string format for safety
         if chat_id in user_groups or str(chat_id) in user_groups:
             members.append(user_data)
             
