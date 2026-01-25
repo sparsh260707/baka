@@ -1,10 +1,14 @@
-# Final Economy System for BAKA Bot - MongoDB Version
 import time
 import random
 from telegram import Update
-from telegram.ext import ContextTypes
-from database.db import get_user, users_col
-
+from telegram.ext import ContextTypes, CommandHandler
+# Database se zaroori functions import
+from database.db import (
+    get_user, 
+    users_col, 
+    is_economy_on, 
+    set_economy_status
+)
 # ===== TIME UTILS =====
 def now():
     return int(time.time())
