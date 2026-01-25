@@ -13,12 +13,15 @@ load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
 # Economy commands
-from commands.economy import bal, rob, kill, revive, protect
+from commands.economy import (
+    bal, rob, kill, revive, protect,
+    give, myrank, toprich, leaders, economy
+)
 
-# AI Chatbot
+# AI chatbot
 from commands.chatbot import ask_ai, ai_message_handler
 
-# Direct /start image (not from env)
+# Direct /start image
 START_IMAGE_URL = "https://files.catbox.moe/yzpfuh.jpg"  # <-- change to your image URL
 
 # ================== /START COMMAND ==================
@@ -61,10 +64,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     else:
         # Send image
         if START_IMAGE_URL.startswith("http"):
-            await update.message.reply_photo(photo=START_IMAGE_URL, caption=text, reply_markup=reply_markup, parse_mode="Markdown")
+            await update.message.reply_photo(
+                photo=START_IMAGE_URL, caption=text, reply_markup=reply_markup, parse_mode="Markdown"
+            )
         else:
             with open(START_IMAGE_URL, "rb") as f:
-                await update.message.reply_photo(photo=InputFile(f), caption=text, reply_markup=reply_markup, parse_mode="Markdown")
+                await update.message.reply_photo(
+                    photo=InputFile(f), caption=text, reply_markup=reply_markup, parse_mode="Markdown"
+                )
 
 # ================== CALLBACK QUERY HANDLER ==================
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -91,6 +98,11 @@ def main():
     app.add_handler(CommandHandler("kill", kill))
     app.add_handler(CommandHandler("revive", revive))
     app.add_handler(CommandHandler("protect", protect))
+    app.add_handler(CommandHandler("give", give))
+    app.add_handler(CommandHandler("myrank", myrank))
+    app.add_handler(CommandHandler("toprich", toprich))
+    app.add_handler(CommandHandler("leaders", leaders))
+    app.add_handler(CommandHandler("economy", economy))
 
     # AI chatbot
     app.add_handler(CommandHandler("ask", ask_ai))
