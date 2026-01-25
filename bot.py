@@ -30,10 +30,11 @@ from commands.admin import register_admin_commands
 from commands.chatbot import ask_ai, ai_message_handler
 
 # Fun commands
-from commands.fun import slap, hug, punch, kiss, couple
+from commands.fun import slap, hug, punch, kiss
+from commands.couple import couple  # couple command
 
 # ================== START IMAGE ==================
-START_IMAGE_URL = "https://files.catbox.moe/yzpfuh.jpg"  # change if needed
+START_IMAGE_URL = "https://files.catbox.moe/yzpfuh.jpg"
 
 # ================== /START COMMAND ==================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -59,7 +60,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 👇 Choose An Option Below:"""
 
-    # If not private, ask user to check private
+    # Private chat
     if update.effective_chat.type != "private":
         await update.message.reply_text(
             "📩 Check your private chat to start!",
@@ -78,7 +79,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             pass
         return
 
-    # In private: send image + text
+    # Send image in private
     if START_IMAGE_URL.startswith("http"):
         await update.message.reply_photo(
             photo=START_IMAGE_URL,
