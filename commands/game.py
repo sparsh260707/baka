@@ -10,15 +10,17 @@ DB_FILE = "database/users.json"
 # ====================== /claim ======================
 async def claim(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat = update.effective_chat
+    user_obj = update.effective_user
 
     # Only in group
     if chat.type not in ["group", "supergroup"]:
         await update.message.reply_text("❌ This command can only be used in a group.")
         return
 
-    # Check members
+    # Fetch members count safely
     try:
-        members_count = await context.bot.get_chat_members_count(chat.id)
+        chat_info = await context.bot.get_chat(chat.id)
+        members_count = chat_info.get('members_count', 0)
     except:
         members_count = 0
 
@@ -26,16 +28,17 @@ async def claim(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ At least 100 members are required to claim the reward!")
         return
 
-    # Dynamic reward: 1$ per 10 members
-    reward = max(100, members_count // 10)  # Minimum 100$
-    
-    # Load DB
+    # Load database
     data = load()
-    user = get_user(data, update.effective_user)
-    user["bal"] += reward
+    user = get_user(data, user_obj)
+
+    # Dynamic reward: 1 coin per 10 members, min 100
+    reward = max(100, members_count // 10)
+
+    user["bal"] = user.get("bal", 200) + reward
     save(data)
 
-    await update.message.reply_text(f"✅ You claimed the group reward of ${reward}!")
+    await update.message.reply_text(f"✅ You claimed the group reward of ${reward} coins!")
 
 # ====================== /daily ======================
 async def daily(update: Update, context: ContextTypes.DEFAULT_TYPE):
