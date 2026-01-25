@@ -12,9 +12,9 @@ from telegram.constants import ParseMode, ChatType
 from utils import get_mention          # utils.py in root
 from database.db import get_group_members  # db.py in database/
 
-# --- Path Settings ---
-BASE_DIR = Path(__file__).parent.parent.resolve()  # root of your bot
-ASSETS = BASE_DIR / "assets"
+# Root is current folder where bot.py is
+BASE_DIR = Path(__file__).parent.parent  # commands/couple.py ke liye parent of commands
+ASSETS = Path("/root/assets")  # VPS me assets ka exact path
 BG_PATH = ASSETS / "cppic.png"
 FALLBACK_PATH = ASSETS / "upic.png"
 TEMP_DIR = BASE_DIR / "temp_couples"
