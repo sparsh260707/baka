@@ -13,26 +13,25 @@ client = pymongo.MongoClient(MONGO_URL)
 db = client["baka_bot_db"]
 users_col = db["users"]
 
-# --- COMPATIBILITY FUNCTIONS (Economy.py ke liye) ---
+# --- COMPATIBILITY FUNCTIONS ---
 def load():
-    """Purane JSON logic ke liye dummy function taaki bot crash na ho."""
     return {}
 
 def save(data):
-    """Purane JSON logic ke liye dummy function."""
     pass
-# --------------------------------------------------
+# -------------------------------
 
 def get_user(user, chat_id=None):
-    """User ko MongoDB mein register/update karta hai."""
+    """Hamesha ek dictionary return karega taaki 'NoneType' error na aaye."""
     if not user or not hasattr(user, 'id'):
-        return None
+        # Agar user valid nahi hai, toh empty structure return karo
+        return {"id": 0, "groups": [], "bal": 0}
 
     uid = user.id
     user_data = users_col.find_one({"id": uid})
 
     if not user_data:
-        # Naya user document
+        # Naya user document banayein
         user_data = {
             "id": uid,
             "name": getattr(user, 'first_name', "Unknown"),
@@ -46,19 +45,23 @@ def get_user(user, chat_id=None):
         }
         users_col.insert_one(user_data)
     
+    # Safety: Ensure 'groups' key exists
+    if "groups" not in user_data:
+        user_data["groups"] = []
+
     if chat_id is not None:
-        # User ko group list mein add karna
-        users_col.update_one(
-            {"id": uid},
-            {"$addToSet": {"groups": chat_id}}
-        )
-        user_data = users_col.find_one({"id": uid})
+        # Update MongoDB and local object
+        if chat_id not in user_data["groups"]:
+            users_col.update_one(
+                {"id": uid},
+                {"$addToSet": {"groups": chat_id}}
+            )
+            user_data["groups"].append(chat_id)
 
     return user_data
 
 def get_group_members(chat_id):
-    """NoneType error safety ke saath members fetch karta hai."""
+    """Group members fetch karein safety ke saath."""
     query = {"groups": chat_id}
     cursor = users_col.find(query)
-    # Filter None values to prevent crashes
     return [u for u in cursor if u is not None]
