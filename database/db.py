@@ -20,7 +20,7 @@ def save(data):
         pass
 
 def get_user(user, chat_id=None):
-    # Safety Check: Agar user object hi nahi hai
+    # Safety Check: Agar user object null hai toh wahin ruk jao
     if not user or not hasattr(user, 'id'):
         return None
 
@@ -40,15 +40,13 @@ def get_user(user, chat_id=None):
             "rob": 0
         }
     
-    # Ensure 'groups' exists
+    # Purane users ke liye check
     if "groups" not in data[uid]:
         data[uid]["groups"] = []
 
-    # Chat ID register karein
     if chat_id is not None:
-        cid = chat_id # Integer format
-        if cid not in data[uid]["groups"]:
-            data[uid]["groups"].append(cid)
+        if chat_id not in data[uid]["groups"]:
+            data[uid]["groups"].append(chat_id)
 
     save(data)
     return data[uid]
@@ -57,9 +55,8 @@ def get_group_members(chat_id):
     data = load()
     members = []
     for u in data.values():
-        # Safety check for 'id' and 'groups'
+        # 'id' aur 'groups' check karein bina crash hue
         if not u.get("id"): continue
-        
         user_groups = u.get("groups", [])
         if chat_id in user_groups or str(chat_id) in user_groups:
             members.append(u)
