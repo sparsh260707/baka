@@ -1,5 +1,5 @@
 # bot.py
-# Final BAKA Bot - Economy + AI Chatbot + Fun + Games + Admin + /start image
+# Final BAKA Bot - Economy + AI Chatbot + Fun + Games + Admin + Auto-Registration
 
 import os
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputFile
@@ -12,8 +12,10 @@ from dotenv import load_dotenv
 load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
-# ================== IMPORT COMMANDS ==================
+# ================== IMPORT DATABASE LOGIC ==================
+from database.db import get_user  # Har message pe register karne ke liye
 
+# ================== IMPORT COMMANDS ==================
 # Economy commands
 from commands.economy import (
     bal, rob, kill, revive, protect,
@@ -31,10 +33,22 @@ from commands.chatbot import ask_ai, ai_message_handler
 
 # Fun commands
 from commands.fun import slap, hug, punch, kiss
-from commands.couple import couple  # couple command
+from commands.couple import couple 
 
 # ================== START IMAGE ==================
 START_IMAGE_URL = "https://files.catbox.moe/yzpfuh.jpg"
+
+# ================== AUTO-REGISTER HANDLER ==================
+async def auto_register_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Har message par user aur group ko register karta hai."""
+    if not update.effective_user or update.effective_user.is_bot:
+        return
+    
+    chat_id = update.effective_chat.id
+    user = update.effective_user
+    
+    # Database mein user aur group ID save karein
+    get_user(user, chat_id)
 
 # ================== /START COMMAND ==================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -60,7 +74,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 👇 Choose An Option Below:"""
 
-    # Private chat
+    # Private chat logic
     if update.effective_chat.type != "private":
         await update.message.reply_text(
             "📩 Check your private chat to start!",
@@ -115,6 +129,10 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
 # ================== MAIN ==================
 def main():
     app = Application.builder().token(BOT_TOKEN).build()
+
+    # ================= AUTO-REGISTRATION (Highest Priority) =================
+    # Ye handler har text/command message par trigger hoga
+    app.add_handler(MessageHandler(filters.ALL, auto_register_handler), group=-1)
 
     # ================= BASIC =================
     app.add_handler(CommandHandler("start", start))
