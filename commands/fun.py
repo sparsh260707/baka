@@ -6,18 +6,25 @@ from database.db import load, save
 
 # ==================== Helpers ====================
 
+def mention_id(uid, name):
+    name = name.replace("<", "").replace(">", "")
+    return f'<a href="tg://user?id={uid}">{name}</a>'
+
 def mention(user):
-    name = user.first_name.replace("<", "").replace(">", "")
-    return f'<a href="tg://user?id={user.id}">{name}</a>'
+    return mention_id(user.id, user.first_name)
 
 def get_target(update: Update):
     if update.message.reply_to_message:
         return update.message.reply_to_message.from_user
     return None
 
-# Track users in group (for /couple)
+# ==================== Track Users ====================
+
 def track_user(update: Update):
     if not update.effective_chat or not update.effective_user:
+        return
+
+    if update.effective_chat.type not in ["group", "supergroup"]:
         return
 
     chat_id = str(update.effective_chat.id)
@@ -30,8 +37,7 @@ def track_user(update: Update):
 
     if str(user.id) not in data[chat_id]:
         data[chat_id][str(user.id)] = {
-            "name": user.first_name,
-            "coins": 0
+            "name": user.first_name
         }
         save(data)
 
@@ -152,21 +158,14 @@ async def couple(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ Not enough active users in this group!")
         return
 
-    users = list(data[chat_id].keys())
+    users = list(data[chat_id].items())  # [(uid, {"name":..}), ...]
 
-    u1_id, u2_id = random.sample(users, 2)
-
-    try:
-        u1 = await context.bot.get_chat(int(chat_id), int(u1_id))
-        u2 = await context.bot.get_chat(int(chat_id), int(u2_id))
-    except:
-        await update.message.reply_text("❌ Try again!")
-        return
+    (u1_id, u1_data), (u2_id, u2_data) = random.sample(users, 2)
 
     text = f"""
 💖 <b>Today's Cute Couple</b> 💖
 
-<a href="tg://user?id={u1_id}">{u1.first_name}</a> 💞 <a href="tg://user?id={u2_id}">{u2.first_name}</a>
+{mention_id(u1_id, u1_data['name'])} 💞 {mention_id(u2_id, u2_data['name'])}
 
 Love is in the air 💘
 
