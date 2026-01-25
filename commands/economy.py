@@ -1,3 +1,7 @@
+# commands/economy.py
+# Final Economy System for BAKA Bot
+# Handles /bal, /rob, /kill, /revive, /protect with proper balances
+
 import time
 import random
 from telegram import Update
@@ -18,17 +22,35 @@ def is_dead(user):
 def is_protected(user):
     return user.get("protect_until", 0) > now()
 
+# ===== DATABASE HELPERS =====
+def get_user_data(user_id):
+    data = load()
+    for u_id, u in data.items():
+        if u_id == str(user_id):
+            return u
+    # If not found, create a new user
+    dummy_user = type("Dummy", (), {"id": user_id, "first_name": "User"})()
+    user = get_user(data, dummy_user)
+    save(data)
+    return user
+
+def update_user_data(user_id, user):
+    data = load()
+    data[str(user_id)] = user
+    save(data)
+
+def get_all_users():
+    return list(load().values())
+
 # ===== /bal =====
 async def bal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     target_user = update.message.reply_to_message.from_user if update.message.reply_to_message else update.effective_user
     user = get_user_data(target_user.id)
 
-    # Set starting balance to 200 if new
     if "bal" not in user:
         user["bal"] = 200
 
-    # Calculate rank
-    all_users = get_user_data(all_users=True)  # fetch all users from db
+    all_users = get_all_users()
     all_users.sort(key=lambda x: x.get("bal", 0), reverse=True)
     rank = all_users.index(user) + 1 if user in all_users else 1
 
@@ -61,9 +83,9 @@ async def rob(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if victim.get("bal", 0) <= 0:
         return await update.message.reply_text("❌ Target has no money.")
 
-    amount = min(victim.get("bal", 0), random.randint(10, 100))  # steal <= victim balance
+    amount = victim.get("bal", 0)  # steal all victim's balance
     robber["bal"] = robber.get("bal", 200) + amount
-    victim["bal"] -= amount
+    victim["bal"] = 0
 
     update_user_data(robber_user.id, robber)
     update_user_data(victim_user.id, victim)
@@ -91,7 +113,7 @@ async def kill(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     victim["dead_until"] = now() + 5 * 60 * 60  # 5 hours
 
-    reward = random.randint(150, 170)  # kill reward between 150-170
+    reward = random.randint(150, 170)
     killer["bal"] = killer.get("bal", 200) + reward
     killer["kills"] = killer.get("kills", 0) + 1
 
