@@ -1,21 +1,16 @@
+# Final Economy System for BAKA Bot - MongoDB Version
 import time
 import random
 from telegram import Update
 from telegram.ext import ContextTypes, CommandHandler
-# Database se zaroori functions import
-from database.db import (
-    get_user, 
-    users_col, 
-    is_economy_on, 
-    set_economy_status
-)
+from database.db import get_user, users_col, is_economy_on, set_economy_status
+
 # ===== TIME UTILS =====
 def now():
     return int(time.time())
 
 # ===== USER HELPERS =====
 def fancy_name(user):
-    # Name safety check taaki UNKNOWN na aaye
     name = user.get("name", "Baka User").upper()
     return f"⏤͟͞ {name}"
 
@@ -27,31 +22,26 @@ def is_protected(user):
 
 async def is_user_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """Check if user is admin or creator of the group."""
-    chat_id = update.effective_chat.id
+    chat = update.effective_chat
     user_id = update.effective_user.id
-    if update.effective_chat.type == "private":
+    if chat.type == "private":
         return True
-    member = await context.bot.get_chat_member(chat_id, user_id)
+    member = await context.bot.get_chat_member(chat.id, user_id)
     return member.status in ["administrator", "creator"]
-    
+
 # ===== DATABASE HELPERS (Updated for MongoDB) =====
 def get_user_data(user_id, user_obj=None):
-    """MongoDB se user ka fresh data fetch karta hai."""
-    # Agar user_obj nahi hai toh dummy banata hai compatibility ke liye
     if not user_obj:
         class Dummy: pass
         user_obj = Dummy()
         user_obj.id = user_id
         user_obj.first_name = f"User_{user_id}"
-    
     return get_user(user_obj)
 
 def update_user_data(user_id, user_data):
-    """MongoDB mein data update karta hai."""
     users_col.replace_one({"id": user_id}, user_data)
 
 def get_all_users():
-    """MongoDB se saare users ki list nikaalta hai."""
     return list(users_col.find())
 
 # ===== STATUS CHECK WRAPPER =====
@@ -62,29 +52,29 @@ async def can_use_economy(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("⚠️ Economy system is currently disabled.\nFor reopen use: /open")
         return False
     return True
-    
+
 # ===== ADMIN COMMANDS: /open & /close =====
 async def close_economy(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await is_user_admin(update, context):
         return await update.message.reply_text("❌ Only admins can close the economy.")
     set_economy_status(update.effective_chat.id, False)
-    await update.message.reply_text("⚠️ Economy system is now CLOSED. Only admins can use commands.\nReopen use: /open")
+    await update.message.reply_text("✅ All economy commands have been disabled.")
 
 async def open_economy(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await is_user_admin(update, context):
         return await update.message.reply_text("❌ Only admins can open the economy.")
     set_economy_status(update.effective_chat.id, True)
-    await update.message.reply_text("✅ Economy system is now OPEN for everyone!")
-    
+    await update.message.reply_text("✅ All economy commands have been enabled.")
+
 # ===== /bal =====
 async def bal(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await can_use_economy(update, context): return # Status Check
+
     user_obj = update.effective_user
     if update.message.reply_to_message:
         user_obj = update.message.reply_to_message.from_user
 
-    # Database se fresh data lein (MongoDB)
     user_data = get_user(user_obj)
-    
     current_bal = user_data.get("bal", 0)
     status = "dead 💀" if is_dead(user_data) else "alive ❤️"
 
@@ -98,6 +88,8 @@ async def bal(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ===== /toprich =====
 async def toprich(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await can_use_economy(update, context): return # Status Check
+
     all_users = get_all_users()
     all_users.sort(key=lambda x: x.get("bal", 0), reverse=True)
     msg = "🌍 Top 10 Richest Players:\n\n"
@@ -108,6 +100,8 @@ async def toprich(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ===== /rob =====
 async def rob(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await can_use_economy(update, context): return # Status Check
+
     if not update.message.reply_to_message:
         return await update.message.reply_text("Reply to someone to rob.")
 
@@ -142,6 +136,8 @@ async def rob(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ===== /kill =====
 async def kill(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await can_use_economy(update, context): return # Status Check
+
     if not update.message.reply_to_message:
         return await update.message.reply_text("Reply to someone to kill.")
 
@@ -158,7 +154,7 @@ async def kill(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if is_protected(victim):
         return await update.message.reply_text("🛡️ Target is protected.")
 
-    victim["dead_until"] = now() + 5 * 60 * 60  # 5 hours
+    victim["dead_until"] = now() + 5 * 60 * 60
 
     reward = random.randint(150, 170)
     killer["bal"] = killer.get("bal", 200) + reward
@@ -167,13 +163,14 @@ async def kill(update: Update, context: ContextTypes.DEFAULT_TYPE):
     update_user_data(killer_user.id, killer)
     update_user_data(victim_user.id, victim)
 
-    # UNKNOWN fix: Killer ka fresh name use karein
     killer_display = fancy_name(killer)
     msg = f"👤 {killer_display} killed {victim_user.first_name}!\n💰 Earned: ${reward}"
     await update.message.reply_text(msg)
 
 # ===== /revive =====
 async def revive(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await can_use_economy(update, context): return # Status Check
+
     reviver_user = update.effective_user
     reviver = get_user_data(reviver_user.id, reviver_user)
 
@@ -197,6 +194,8 @@ async def revive(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ===== /protect =====
 async def protect(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await can_use_economy(update, context): return # Status Check
+
     user_id = update.effective_user.id
     user = get_user_data(user_id, update.effective_user)
 
@@ -216,6 +215,8 @@ async def protect(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ===== /give =====
 async def give(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await can_use_economy(update, context): return # Status Check
+
     if not update.message.reply_to_message or not context.args:
         return await update.message.reply_text("Reply to someone and specify amount: /give <amount>")
 
@@ -245,11 +246,12 @@ async def give(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ===== /myrank =====
 async def myrank(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await can_use_economy(update, context): return # Status Check
+
     user = get_user_data(update.effective_user.id, update.effective_user)
     all_users = get_all_users()
     all_users.sort(key=lambda x: x.get("bal", 0), reverse=True)
     
-    # User ID match se rank dhoondein
     rank = 1
     for i, u in enumerate(all_users, 1):
         if u.get("id") == update.effective_user.id:
@@ -260,6 +262,8 @@ async def myrank(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ===== /leaders =====
 async def leaders(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await can_use_economy(update, context): return # Status Check
+
     all_users = get_all_users()
     all_users.sort(key=lambda x: x.get("kills", 0), reverse=True)
     msg = "🔥 Top 10 Bomb Game Players:\n\n"
@@ -270,24 +274,16 @@ async def leaders(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ===== /economy =====
 async def economy(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    msg = """⚡️ All users get $50 every 12 hours!
+    msg = """⚡️ Baka Bot Economy Guide
 
-📌 Commands:
-/bal — Your/your friend's balance 💵
-/toprich — Top 10 richest globally 🌍
-/rob (reply) <amount> — Rob money 🦹‍♂️
-/kill (reply) — Kill someone 💀
-/protect <1d/2d/3d> — Protect yourself 🛡️
-/revive (reply or no reply) — Revive yourself or a friend ❤️
-/give (reply) <amount> — Give money 🎁
-/myrank — Show global bomb rank 🏆
-/leaders - Show top 10 bomb game players
-/economy — Full economy guide 📖
+📌 User Commands:
+/bal, /toprich, /rob, /kill, /protect, /revive, /give, /myrank, /leaders
 
-🔒 Protection Rules:
-Protected users cannot be robbed or killed.
-Dead users auto-revive after 5 hours, or use /revive to come back sooner.
-1-day = $200 💰 | 2-day = $500 💰| 3-day = $800 💰
+👑 Admin Commands:
+/open — Everyone can use economy
+/close — Only admins can use economy
 
-⚠️ Note: All virtual money, fun only! 🎉"""
+🔒 Protection:
+1-day = $200 | 2-day = $500 | 3-day = $800
+Dead users revive after 5 hours or use /revive ($500)."""
     await update.message.reply_text(msg)
