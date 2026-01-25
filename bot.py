@@ -21,6 +21,9 @@ from commands.economy import (
 # AI chatbot
 from commands.chatbot import ask_ai, ai_message_handler
 
+# Game commands (/daily & /claim)
+from commands.game import register_game_commands
+
 # Direct /start image
 START_IMAGE_URL = "https://files.catbox.moe/yzpfuh.jpg"  # <-- change to your image URL
 
@@ -103,6 +106,9 @@ def main():
     app.add_handler(CommandHandler("toprich", toprich))
     app.add_handler(CommandHandler("leaders", leaders))
     app.add_handler(CommandHandler("economy", economy))
+
+    # Game commands
+    register_game_commands(app)  # /daily & /claim
 
     # AI chatbot
     app.add_handler(CommandHandler("ask", ask_ai))
