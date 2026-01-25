@@ -1,24 +1,31 @@
 import json
 from pathlib import Path
 
+# DB file path (baka/database/users.json)
 DB_FILE = Path("database/users.json")
 
 def load():
-    """Load users data from JSON."""
+    """JSON se users data load karta hai."""
     try:
+        if not DB_FILE.exists():
+            return {}
         with open(DB_FILE, "r") as f:
             return json.load(f)
-    except FileNotFoundError:
+    except Exception as e:
+        print(f"Error loading DB: {e}")
         return {}
 
 def save(data):
-    """Save users data to JSON."""
-    DB_FILE.parent.mkdir(parents=True, exist_ok=True)
-    with open(DB_FILE, "w") as f:
-        json.dump(data, f, indent=2)
+    """Users data ko JSON mein save karta hai."""
+    try:
+        DB_FILE.parent.mkdir(parents=True, exist_ok=True)
+        with open(DB_FILE, "w") as f:
+            json.dump(data, f, indent=2)
+    except Exception as e:
+        print(f"Error saving DB: {e}")
 
 def get_user(user, chat_id=None):
-    """Get or create a user entry."""
+    """User entry nikaalta hai ya nayi banata hai."""
     data = load()
     uid = str(user.id)
 
@@ -35,13 +42,25 @@ def get_user(user, chat_id=None):
             "rob": 0
         }
 
-    if chat_id is not None and chat_id not in data[uid]["groups"]:
-        data[uid]["groups"].append(chat_id)
+    # Chat ID ko register karna (taaki couple command me kaam aaye)
+    if chat_id is not None:
+        if chat_id not in data[uid]["groups"]:
+            data[uid]["groups"].append(chat_id)
 
     save(data)
     return data[uid]
 
 def get_group_members(chat_id):
-    """Return all users in a specific group."""
+    """Uss group ke saare members (Offline/Online) return karta hai."""
     data = load()
-    return [u for u in data.values() if chat_id in u.get("groups", [])]
+    members = []
+    
+    # Target chat_id ko search karna
+    for uid, user_data in data.items():
+        user_groups = user_data.get("groups", [])
+        
+        # Check both int and string format for safety
+        if chat_id in user_groups or str(chat_id) in user_groups:
+            members.append(user_data)
+            
+    return members
