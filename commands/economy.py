@@ -11,6 +11,7 @@ def now():
 
 # ===== USER HELPERS =====
 def fancy_name(user):
+    """Name safety check taaki UNKNOWN na aaye."""
     name = user.get("name", "Baka User").upper()
     return f"⏤͟͞ {name}"
 
@@ -21,15 +22,18 @@ def is_protected(user):
     return user.get("protect_until", 0) > now()
 
 async def is_user_admin(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Check if user is admin or creator of the group."""
+    """Check karta hai ki user admin hai ya nahi (Admins bypass close status)."""
     chat = update.effective_chat
     user_id = update.effective_user.id
     if chat.type == "private":
         return True
-    member = await context.bot.get_chat_member(chat.id, user_id)
-    return member.status in ["administrator", "creator"]
+    try:
+        member = await context.bot.get_chat_member(chat.id, user_id)
+        return member.status in ["administrator", "creator"]
+    except Exception:
+        return False
 
-# ===== DATABASE HELPERS (Updated for MongoDB) =====
+# ===== DATABASE HELPERS =====
 def get_user_data(user_id, user_obj=None):
     if not user_obj:
         class Dummy: pass
@@ -55,10 +59,10 @@ async def can_use_economy(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # 2. Check if user is admin
     is_admin = await is_user_admin(update, context)
 
-    # 3. LOGIC: Agar system CLOSE hai aur user ADMIN NAHI hai, toh block karo
+    # 3. Agar system CLOSE hai aur user ADMIN NAHI hai, toh block karo
     if not is_open and not is_admin:
         await update.message.reply_text("⚠️ For reopen use: /open")
-        return False # Yeh command ko aage nahi badhne dega
+        return False 
         
     return True
 
@@ -66,18 +70,20 @@ async def can_use_economy(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def close_economy(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await is_user_admin(update, context):
         return await update.message.reply_text("❌ Only admins can close the economy.")
+    
     set_economy_status(update.effective_chat.id, False)
     await update.message.reply_text("✅ All economy commands have been disabled.")
 
 async def open_economy(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await is_user_admin(update, context):
         return await update.message.reply_text("❌ Only admins can open the economy.")
+    
     set_economy_status(update.effective_chat.id, True)
     await update.message.reply_text("✅ All economy commands have been enabled.")
 
 # ===== /bal =====
 async def bal(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not await can_use_economy(update, context): return # Status Check
+    if not await can_use_economy(update, context): return
 
     user_obj = update.effective_user
     if update.message.reply_to_message:
@@ -97,7 +103,7 @@ async def bal(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ===== /toprich =====
 async def toprich(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not await can_use_economy(update, context): return # Status Check
+    if not await can_use_economy(update, context): return
 
     all_users = get_all_users()
     all_users.sort(key=lambda x: x.get("bal", 0), reverse=True)
@@ -109,7 +115,7 @@ async def toprich(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ===== /rob =====
 async def rob(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not await can_use_economy(update, context): return # Status Check
+    if not await can_use_economy(update, context): return
 
     if not update.message.reply_to_message:
         return await update.message.reply_text("Reply to someone to rob.")
@@ -145,7 +151,7 @@ async def rob(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ===== /kill =====
 async def kill(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not await can_use_economy(update, context): return # Status Check
+    if not await can_use_economy(update, context): return
 
     if not update.message.reply_to_message:
         return await update.message.reply_text("Reply to someone to kill.")
@@ -178,7 +184,7 @@ async def kill(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ===== /revive =====
 async def revive(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not await can_use_economy(update, context): return # Status Check
+    if not await can_use_economy(update, context): return
 
     reviver_user = update.effective_user
     reviver = get_user_data(reviver_user.id, reviver_user)
@@ -203,7 +209,7 @@ async def revive(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ===== /protect =====
 async def protect(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not await can_use_economy(update, context): return # Status Check
+    if not await can_use_economy(update, context): return
 
     user_id = update.effective_user.id
     user = get_user_data(user_id, update.effective_user)
@@ -224,7 +230,7 @@ async def protect(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ===== /give =====
 async def give(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not await can_use_economy(update, context): return # Status Check
+    if not await can_use_economy(update, context): return
 
     if not update.message.reply_to_message or not context.args:
         return await update.message.reply_text("Reply to someone and specify amount: /give <amount>")
@@ -255,7 +261,7 @@ async def give(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ===== /myrank =====
 async def myrank(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not await can_use_economy(update, context): return # Status Check
+    if not await can_use_economy(update, context): return
 
     user = get_user_data(update.effective_user.id, update.effective_user)
     all_users = get_all_users()
@@ -271,7 +277,7 @@ async def myrank(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ===== /leaders =====
 async def leaders(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not await can_use_economy(update, context): return # Status Check
+    if not await can_use_economy(update, context): return
 
     all_users = get_all_users()
     all_users.sort(key=lambda x: x.get("kills", 0), reverse=True)
@@ -280,7 +286,7 @@ async def leaders(update: Update, context: ContextTypes.DEFAULT_TYPE):
         name = u.get("name", "Unknown")
         msg += f"{i}. {name} — {u.get('kills', 0)} kills\n"
     await update.message.reply_text(msg)
-
+    
 # ===== /economy =====
 async def economy(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = """⚡️ Baka Bot Economy Guide
