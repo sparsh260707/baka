@@ -46,11 +46,20 @@ def get_all_users():
 
 # ===== STATUS CHECK WRAPPER =====
 async def can_use_economy(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Check if economy is open or if user is admin."""
-    # Agar economy OFF hai aur user ADMIN NAHI hai toh mana kar do
-    if not is_economy_on(update.effective_chat.id) and not await is_user_admin(update, context):
-        await update.message.reply_text("⚠️ Economy system is currently disabled.\nFor reopen use: /open")
-        return False
+    """Economy system status aur admin bypass check karta hai."""
+    chat_id = update.effective_chat.id
+    
+    # 1. Check if economy is disabled in database
+    is_open = is_economy_on(chat_id)
+    
+    # 2. Check if user is admin
+    is_admin = await is_user_admin(update, context)
+
+    # 3. LOGIC: Agar system CLOSE hai aur user ADMIN NAHI hai, toh block karo
+    if not is_open and not is_admin:
+        await update.message.reply_text("⚠️ For reopen use: /open")
+        return False # Yeh command ko aage nahi badhne dega
+        
     return True
 
 # ===== ADMIN COMMANDS: /open & /close =====
