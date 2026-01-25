@@ -14,11 +14,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [
             InlineKeyboardButton("💬 Talk to Baka", url="https://t.me/codebotnetwork"),
-            InlineKeyboardButton("✨ Owner", url="https://t.me/oye_sparsh")
+            InlineKeyboardButton("✨ ⏤͟͞ 𝙎𝙋𝘼𝙍𝙎𝙃 𝘽𝘼𝙉𝙄𝙔𝘼", url="https://t.me/oye_sparsh")
         ],
         [
             InlineKeyboardButton("🧸 Friends", url="https://t.me/codebotnetwork"),
-            InlineKeyboardButton("🎮 ⏤͟͞ 𝙎𝙋𝘼𝙍𝙎𝙃 𝘽𝘼𝙉𝙄𝙔𝘼", url=f"https://t.me/{context.bot.username}")
+            InlineKeyboardButton("🎮 GAMES", url=f"https://t.me/{context.bot.username}")
         ],
         [
             InlineKeyboardButton("➕ Add me to your group", url=f"https://t.me/{context.bot.username}?startgroup=true")
