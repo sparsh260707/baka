@@ -8,7 +8,7 @@ from telegram.ext import (
 )
 from dotenv import load_dotenv
 
-# Load all keys from .env
+# ================== LOAD ENV ==================
 load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
@@ -32,7 +32,7 @@ from commands.chatbot import ask_ai, ai_message_handler
 # Fun commands
 from commands.fun import slap, hug, punch, kiss, couple
 
-# Direct /start image
+# ================== START IMAGE ==================
 START_IMAGE_URL = "https://files.catbox.moe/yzpfuh.jpg"  # change if needed
 
 # ================== /START COMMAND ==================
@@ -63,33 +63,37 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat.type != "private":
         await update.message.reply_text(
             "📩 Check your private chat to start!",
-            reply_markup=InlineKeyboardMarkup([[ 
+            reply_markup=InlineKeyboardMarkup([[
                 InlineKeyboardButton("💬 Open Private", url=f"https://t.me/{context.bot.username}")
             ]])
         )
-        await context.bot.send_message(
-            chat_id=user.id,
-            text=text,
+        try:
+            await context.bot.send_message(
+                chat_id=user.id,
+                text=text,
+                reply_markup=reply_markup,
+                parse_mode="Markdown"
+            )
+        except:
+            pass
+        return
+
+    # In private: send image + text
+    if START_IMAGE_URL.startswith("http"):
+        await update.message.reply_photo(
+            photo=START_IMAGE_URL,
+            caption=text,
             reply_markup=reply_markup,
             parse_mode="Markdown"
         )
     else:
-        # Send image
-        if START_IMAGE_URL.startswith("http"):
+        with open(START_IMAGE_URL, "rb") as f:
             await update.message.reply_photo(
-                photo=START_IMAGE_URL,
+                photo=InputFile(f),
                 caption=text,
                 reply_markup=reply_markup,
                 parse_mode="Markdown"
             )
-        else:
-            with open(START_IMAGE_URL, "rb") as f:
-                await update.message.reply_photo(
-                    photo=InputFile(f),
-                    caption=text,
-                    reply_markup=reply_markup,
-                    parse_mode="Markdown"
-                )
 
 # ================== CALLBACK QUERY HANDLER ==================
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -98,17 +102,15 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if query.data == "talk_baka":
         await query.message.reply_text(
-            "Main thik hu, tum kaise ho? 😊\nYou can continue chatting with me here or type /ask <message>",
+            "Main thik hu, tum kaise ho? 😊\nYou can continue chatting with me here or type /ask <message>"
         )
 
-# ================== MAIN BOT SETUP ==================
+# ================== MAIN ==================
 def main():
     app = Application.builder().token(BOT_TOKEN).build()
 
-    # Start command
+    # ================= BASIC =================
     app.add_handler(CommandHandler("start", start))
-
-    # Callback buttons
     app.add_handler(CallbackQueryHandler(button_handler))
 
     # ================= ECONOMY =================
@@ -141,7 +143,8 @@ def main():
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), ai_message_handler))
 
     print("🤖 Bot is running...")
-    app.run_polling()
+    app.run_polling(drop_pending_updates=True)
 
+# ================== ENTRY ==================
 if __name__ == "__main__":
     main()
