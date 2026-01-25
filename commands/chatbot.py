@@ -24,7 +24,7 @@ except:
 
 # === Fancy font style ===
 def nezuko_style(text):
-    mapping = str.maketrans("abcdefghijklmnopqrstuvwxyz", "ᴀʙᴄᴅᴇғɢʜɪᴊᴋʟᴍɴᴏᴘǫʀsᴛᴜᴠᴡxʏᴢ")
+    mapping = str.maketrans("abcdefghijklmnopqrstuvwxyz", "abcdefghijklmnopqrstuvwxyz")
     return str(text).lower().translate(mapping)
 
 # === AI Models ===
