@@ -55,9 +55,8 @@ def get_all_users():
 async def can_use_economy(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     is_open = is_economy_on(chat_id)
-    is_admin = await is_user_admin(update, context)
 
-    if not is_open and not is_admin:
+    if not is_open:
         await update.message.reply_text("⚠️ For reopen use: /open")
         return False
 
