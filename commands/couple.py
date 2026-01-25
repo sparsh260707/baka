@@ -68,15 +68,15 @@ async def couple(update: Update, context: ContextTypes.DEFAULT_TYPE):
             photo=data['img_path'], caption=data['caption'], parse_mode=ParseMode.HTML
         )
 
-   bg_path_to_use = BG_PATH
-if not bg_path_to_use.exists():
-    bg_path_to_use = FALLBACK_PATH
-    await update.message.reply_text(
-        "⚠️ Warning: 'cppic.png' missing, using fallback background."
-    )
+    # Background check
+    bg_path_to_use = BG_PATH
+    if not bg_path_to_use.exists():
+        bg_path_to_use = FALLBACK_PATH
+        await update.message.reply_text(
+            "⚠️ Warning: 'cppic.png' missing, using fallback background."
+        )
 
-# use bg_path_to_use instead of BG_PATH
-base = Image.open(bg_path_to_use).convert("RGBA")
+    base = Image.open(bg_path_to_use).convert("RGBA")
 
     msg = await update.message.reply_text("ɢᴇɴᴇʀᴀᴛɪɴɢ ᴄᴏᴜᴘʟᴇs ɪᴍᴀɢᴇ...")
 
@@ -89,7 +89,6 @@ base = Image.open(bg_path_to_use).convert("RGBA")
 
     c1_db, c2_db = random.sample(members, 2)
 
-    base = Image.open(BG_PATH).convert("RGBA")
     p1_img = await get_circular_avatar(context.bot, c1_db["id"])
     p2_img = await get_circular_avatar(context.bot, c2_db["id"])
 
