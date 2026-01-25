@@ -51,7 +51,7 @@ Welcome to the 💰 *Economy Crime Game Bot* 😈
 # ================== MAIN ==================
 
 def main():
-    BOT_TOKEN = "PUT_YOUR_BOT_TOKEN_HERE"
+    BOT_TOKEN = "8287968509:AAHLI0b1YGk0bfMIbSMOIQ4ETF68uNsBfos"
 
     app = Application.builder().token(BOT_TOKEN).build()
 
