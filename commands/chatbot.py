@@ -79,7 +79,7 @@ async def get_ai_response(chat_id, user_input, user_name, model="mistral"):
     prompt = f"You are BAKA AI, a cute sassy Hinglish girl. Reply in 1 short sentence only. User: {user_name}"
 
     history = []
-    if chatbot_collection:
+    if chatbot_collection is not None:
         doc = chatbot_collection.find_one({"chat_id": chat_id}) or {}
         history = doc.get("history", [])
 
@@ -88,7 +88,7 @@ async def get_ai_response(chat_id, user_input, user_name, model="mistral"):
     reply = await call_model_api(active_model, msgs, tokens) or "Main thik hu, tum kaise ho? 😊"
 
     # Save history
-    if chatbot_collection:
+    if chatbot_collection is not None:
         chatbot_collection.update_one(
             {"chat_id": chat_id},
             {"$set": {"history": (history + [{"role":"user","content":user_input},{"role":"assistant","content":reply}])[-10:]}},
