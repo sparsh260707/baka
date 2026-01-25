@@ -2,6 +2,7 @@
 import random
 from telegram import Update
 from telegram.ext import ContextTypes
+from database.db import load, save
 
 # ==================== Helpers ====================
 
@@ -14,9 +15,31 @@ def get_target(update: Update):
         return update.message.reply_to_message.from_user
     return None
 
+# Track users in group (for /couple)
+def track_user(update: Update):
+    if not update.effective_chat or not update.effective_user:
+        return
+
+    chat_id = str(update.effective_chat.id)
+    user = update.effective_user
+
+    data = load()
+
+    if chat_id not in data:
+        data[chat_id] = {}
+
+    if str(user.id) not in data[chat_id]:
+        data[chat_id][str(user.id)] = {
+            "name": user.first_name,
+            "coins": 0
+        }
+        save(data)
+
 # ==================== SLAP ====================
 
 async def slap(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    track_user(update)
+
     videos = [
         "https://files.catbox.moe/ncuiok.mp4",
         "https://files.catbox.moe/9yo533.mp4",
@@ -40,6 +63,8 @@ async def slap(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ==================== HUG ====================
 
 async def hug(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    track_user(update)
+
     videos = [
         "https://files.catbox.moe/ehwyr2.mp4",
         "https://files.catbox.moe/svkyzy.mp4"
@@ -63,6 +88,8 @@ async def hug(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ==================== PUNCH ====================
 
 async def punch(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    track_user(update)
+
     videos = [
         "https://files.catbox.moe/yzqsz6.mp4",
         "https://files.catbox.moe/6gpa4z.mp4"
@@ -86,6 +113,8 @@ async def punch(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ==================== KISS ====================
 
 async def kiss(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    track_user(update)
+
     videos = [
         "https://files.catbox.moe/ehi5uo.mp4",
         "https://files.catbox.moe/bwscnj.mp4"
@@ -109,27 +138,35 @@ async def kiss(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ==================== COUPLE ====================
 
 async def couple(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    track_user(update)
+
     couple_videos = [
         "https://files.catbox.moe/ehwyr2.mp4",
         "https://files.catbox.moe/svkyzy.mp4"
     ]
 
-    chat = update.effective_chat
+    data = load()
+    chat_id = str(update.effective_chat.id)
 
-    admins = await context.bot.get_chat_administrators(chat.id)
-
-    members = [m.user for m in admins if not m.user.is_bot]
-
-    if len(members) < 2:
-        await update.message.reply_text("❌ Not enough users in group!")
+    if chat_id not in data or len(data[chat_id]) < 2:
+        await update.message.reply_text("❌ Not enough active users in this group!")
         return
 
-    u1, u2 = random.sample(members, 2)
+    users = list(data[chat_id].keys())
+
+    u1_id, u2_id = random.sample(users, 2)
+
+    try:
+        u1 = await context.bot.get_chat(int(chat_id), int(u1_id))
+        u2 = await context.bot.get_chat(int(chat_id), int(u2_id))
+    except:
+        await update.message.reply_text("❌ Try again!")
+        return
 
     text = f"""
 💖 <b>Today's Cute Couple</b> 💖
 
-{mention(u1)} 💞 {mention(u2)}
+<a href="tg://user?id={u1_id}">{u1.first_name}</a> 💞 <a href="tg://user?id={u2_id}">{u2.first_name}</a>
 
 Love is in the air 💘
 
