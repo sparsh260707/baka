@@ -1,39 +1,36 @@
 import json
 from pathlib import Path
 
-# DB file path
 DB_FILE = Path("database/users.json")
 
 def load():
-    """JSON se users data load karta hai."""
     try:
-        if not DB_FILE.exists():
-            return {}
+        if not DB_FILE.exists(): return {}
         with open(DB_FILE, "r") as f:
             return json.load(f)
-    except Exception as e:
-        print(f"Error loading DB: {e}")
+    except:
         return {}
 
 def save(data):
-    """Users data ko JSON mein save karta hai."""
     try:
         DB_FILE.parent.mkdir(parents=True, exist_ok=True)
         with open(DB_FILE, "w") as f:
             json.dump(data, f, indent=2)
-    except Exception as e:
-        print(f"Error saving DB: {e}")
+    except:
+        pass
 
 def get_user(user, chat_id=None):
-    """User entry nikaalta hai ya nayi banata hai."""
+    # Safety Check: Agar user object hi nahi hai
+    if not user or not hasattr(user, 'id'):
+        return None
+
     data = load()
     uid = str(user.id)
 
-    # Agar user naya hai
     if uid not in data:
         data[uid] = {
             "id": user.id,
-            "name": user.first_name,
+            "name": getattr(user, 'first_name', "Unknown"),
             "groups": [],
             "bal": 200,
             "dead_until": 0,
@@ -43,28 +40,27 @@ def get_user(user, chat_id=None):
             "rob": 0
         }
     
-    # Purane users ke liye safety: Agar groups key missing hai toh banado
+    # Ensure 'groups' exists
     if "groups" not in data[uid]:
         data[uid]["groups"] = []
 
-    # Chat ID ko register karna
+    # Chat ID register karein
     if chat_id is not None:
-        if chat_id not in data[uid]["groups"] and str(chat_id) not in data[uid]["groups"]:
-            data[uid]["groups"].append(chat_id)
+        cid = chat_id # Integer format
+        if cid not in data[uid]["groups"]:
+            data[uid]["groups"].append(cid)
 
     save(data)
     return data[uid]
 
 def get_group_members(chat_id):
-    """Uss group ke saare members return karta hai."""
     data = load()
     members = []
-    
-    for uid, user_data in data.items():
-        # .get use karne se 'groups' key missing hone par crash nahi hoga
-        user_groups = user_data.get("groups", [])
+    for u in data.values():
+        # Safety check for 'id' and 'groups'
+        if not u.get("id"): continue
         
+        user_groups = u.get("groups", [])
         if chat_id in user_groups or str(chat_id) in user_groups:
-            members.append(user_data)
-            
+            members.append(u)
     return members
