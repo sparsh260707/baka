@@ -68,12 +68,15 @@ async def couple(update: Update, context: ContextTypes.DEFAULT_TYPE):
             photo=data['img_path'], caption=data['caption'], parse_mode=ParseMode.HTML
         )
 
-    # Background fallback check
-    if not BG_PATH.exists():
-        BG_PATH = FALLBACK_PATH
-        await update.message.reply_text(
-            "⚠️ Warning: 'cppic.png' missing, using fallback background."
-        )
+   bg_path_to_use = BG_PATH
+if not bg_path_to_use.exists():
+    bg_path_to_use = FALLBACK_PATH
+    await update.message.reply_text(
+        "⚠️ Warning: 'cppic.png' missing, using fallback background."
+    )
+
+# use bg_path_to_use instead of BG_PATH
+base = Image.open(bg_path_to_use).convert("RGBA")
 
     msg = await update.message.reply_text("ɢᴇɴᴇʀᴀᴛɪɴɢ ᴄᴏᴜᴘʟᴇs ɪᴍᴀɢᴇ...")
 
