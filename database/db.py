@@ -5,7 +5,6 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# MongoDB Connection
 MONGO_URL = os.getenv("MONGO_URL")
 if not MONGO_URL:
     MONGO_URL = "mongodb://localhost:27017"
@@ -13,29 +12,24 @@ if not MONGO_URL:
 client = pymongo.MongoClient(MONGO_URL)
 db = client["baka_bot_db"]
 users_col = db["users"]
-groups_claim_col = db["groups_claim"] # Naya collection claim ke liye
+groups_claim_col = db["groups_claim"]
 
-# --- COMPATIBILITY FUNCTIONS (Economy/Old commands ke liye) ---
-def load():
-    return {}
-
-def save(data):
-    pass
-# -----------------------------------------------------------
+def load(): return {}
+def save(data): pass
 
 def get_user(user, chat_id=None):
-    """Hamesha ek dictionary return karega taaki 'NoneType' error na aaye."""
+    """NoneType aur Missing Key safety ke saath user fetch karta hai."""
     if not user or not hasattr(user, 'id'):
-        return {"id": 0, "groups": [], "bal": 0}
+        return {"id": 0, "groups": [], "bal": 0, "name": "Unknown"}
 
     uid = user.id
     user_data = users_col.find_one({"id": uid})
 
     if not user_data:
-        # Naya user document banayein
+        # Naya user document
         user_data = {
             "id": uid,
-            "name": getattr(user, 'first_name', "Unknown"),
+            "name": getattr(user, 'first_name', f"User_{uid}"),
             "groups": [],
             "bal": 200,
             "dead_until": 0,
@@ -46,12 +40,12 @@ def get_user(user, chat_id=None):
         }
         users_col.insert_one(user_data)
     
-    # Safety: Ensure 'groups' key exists
-    if "groups" not in user_data:
-        user_data["groups"] = []
+    # Safety: Ensure essential keys exist in returned data
+    if "groups" not in user_data: user_data["groups"] = []
+    if "name" not in user_data: user_data["name"] = getattr(user, 'first_name', f"User_{uid}")
+    if "bal" not in user_data: user_data["bal"] = 0
 
     if chat_id is not None:
-        # Update MongoDB and local object
         if chat_id not in user_data["groups"]:
             users_col.update_one(
                 {"id": uid},
@@ -62,20 +56,15 @@ def get_user(user, chat_id=None):
     return user_data
 
 def get_group_members(chat_id):
-    """Group members fetch karein safety ke saath."""
     query = {"groups": chat_id}
     cursor = users_col.find(query)
     return [u for u in cursor if u is not None]
 
-# --- CLAIM LOGIC FUNCTIONS ---
-
 def is_group_claimed(chat_id):
-    """Check karta hai ki group ne reward claim kiya hai ya nahi."""
     data = groups_claim_col.find_one({"chat_id": chat_id})
     return data is not None and data.get("claimed", False)
 
 def mark_group_claimed(chat_id, user_id):
-    """Group ko permanent claimed mark karta hai."""
     groups_claim_col.insert_one({
         "chat_id": chat_id,
         "claimed": True,
