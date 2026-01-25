@@ -8,16 +8,18 @@ from telegram.ext import (
 )
 from dotenv import load_dotenv
 
-# Load environment variables
+# Load all keys from .env
 load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
-START_IMAGE_URL = os.getenv("START_IMAGE_URL", "")
 
 # Economy commands
 from commands.economy import bal, rob, kill, revive, protect
 
 # AI Chatbot
 from commands.chatbot import ask_ai, ai_message_handler
+
+# Direct /start image (not from env)
+START_IMAGE_URL = "https://files.catbox.moe/yzpfuh.jpg"  # <-- change to your image URL
 
 # ================== /START COMMAND ==================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -51,23 +53,18 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 [InlineKeyboardButton("💬 Open Private", url=f"https://t.me/{context.bot.username}")]
             ])
         )
-        # send private message
         await context.bot.send_message(
             chat_id=user.id,
             text=text,
-            reply_markup=reply_markup,
-            parse_mode="Markdown"
+            reply_markup=reply_markup
         )
     else:
-        # Send image if exists
-        if START_IMAGE_URL:
-            if START_IMAGE_URL.startswith("http"):
-                await update.message.reply_photo(photo=START_IMAGE_URL, caption=text, reply_markup=reply_markup, parse_mode="Markdown")
-            else:
-                with open(START_IMAGE_URL, "rb") as f:
-                    await update.message.reply_photo(photo=InputFile(f), caption=text, reply_markup=reply_markup, parse_mode="Markdown")
+        # Send image
+        if START_IMAGE_URL.startswith("http"):
+            await update.message.reply_photo(photo=START_IMAGE_URL, caption=text, reply_markup=reply_markup, parse_mode="Markdown")
         else:
-            await update.message.reply_text(text=text, reply_markup=reply_markup, parse_mode="Markdown")
+            with open(START_IMAGE_URL, "rb") as f:
+                await update.message.reply_photo(photo=InputFile(f), caption=text, reply_markup=reply_markup, parse_mode="Markdown")
 
 # ================== CALLBACK QUERY HANDLER ==================
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
