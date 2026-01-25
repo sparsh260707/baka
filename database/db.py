@@ -1,5 +1,6 @@
 import os
 import pymongo
+from datetime import datetime
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -12,19 +13,19 @@ if not MONGO_URL:
 client = pymongo.MongoClient(MONGO_URL)
 db = client["baka_bot_db"]
 users_col = db["users"]
+groups_claim_col = db["groups_claim"] # Naya collection claim ke liye
 
-# --- COMPATIBILITY FUNCTIONS ---
+# --- COMPATIBILITY FUNCTIONS (Economy/Old commands ke liye) ---
 def load():
     return {}
 
 def save(data):
     pass
-# -------------------------------
+# -----------------------------------------------------------
 
 def get_user(user, chat_id=None):
     """Hamesha ek dictionary return karega taaki 'NoneType' error na aaye."""
     if not user or not hasattr(user, 'id'):
-        # Agar user valid nahi hai, toh empty structure return karo
         return {"id": 0, "groups": [], "bal": 0}
 
     uid = user.id
@@ -65,3 +66,19 @@ def get_group_members(chat_id):
     query = {"groups": chat_id}
     cursor = users_col.find(query)
     return [u for u in cursor if u is not None]
+
+# --- CLAIM LOGIC FUNCTIONS ---
+
+def is_group_claimed(chat_id):
+    """Check karta hai ki group ne reward claim kiya hai ya nahi."""
+    data = groups_claim_col.find_one({"chat_id": chat_id})
+    return data is not None and data.get("claimed", False)
+
+def mark_group_claimed(chat_id, user_id):
+    """Group ko permanent claimed mark karta hai."""
+    groups_claim_col.insert_one({
+        "chat_id": chat_id,
+        "claimed": True,
+        "claimed_by": user_id,
+        "at": datetime.now()
+    })
