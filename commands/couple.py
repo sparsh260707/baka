@@ -9,11 +9,11 @@ from telegram.ext import ContextTypes
 from telegram.constants import ParseMode, ChatType
 
 # Correct imports based on your structure
-from utils import get_mention          # utils.py in baka/
+from utils import get_mention          # utils.py in root
 from database.db import get_group_members  # db.py in database/
 
 # --- Path Settings ---
-BASE_DIR = Path(__file__).parent.parent  # root of your bot
+BASE_DIR = Path(__file__).parent.parent.resolve()  # root of your bot
 ASSETS = BASE_DIR / "assets"
 BG_PATH = ASSETS / "cppic.png"
 FALLBACK_PATH = ASSETS / "upic.png"
