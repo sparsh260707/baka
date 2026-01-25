@@ -1,5 +1,5 @@
 # bot.py
-# Final BAKA Bot - Economy + AI Chatbot + Stickers + Emoji + Models + /start image
+# Final BAKA Bot - Economy + AI Chatbot + Fun + Games + Admin + /start image
 
 import os
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputFile
@@ -13,13 +13,14 @@ load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
 # ================== IMPORT COMMANDS ==================
+
 # Economy commands
 from commands.economy import (
     bal, rob, kill, revive, protect,
     give, myrank, toprich, leaders, economy
 )
 
-# Game commands (/daily & /claim)
+# Game commands
 from commands.game import register_game_commands
 
 # Admin commands
@@ -28,8 +29,11 @@ from commands.admin import register_admin_commands
 # AI chatbot
 from commands.chatbot import ask_ai, ai_message_handler
 
+# Fun commands
+from commands.fun import slap, hug, punch, kiss, couple
+
 # Direct /start image
-START_IMAGE_URL = "https://files.catbox.moe/yzpfuh.jpg"  # <-- change to your image URL
+START_IMAGE_URL = "https://files.catbox.moe/yzpfuh.jpg"  # change if needed
 
 # ================== /START COMMAND ==================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -59,31 +63,39 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if update.effective_chat.type != "private":
         await update.message.reply_text(
             "📩 Check your private chat to start!",
-            reply_markup=InlineKeyboardMarkup([[
+            reply_markup=InlineKeyboardMarkup([[ 
                 InlineKeyboardButton("💬 Open Private", url=f"https://t.me/{context.bot.username}")
             ]])
         )
         await context.bot.send_message(
             chat_id=user.id,
             text=text,
-            reply_markup=reply_markup
+            reply_markup=reply_markup,
+            parse_mode="Markdown"
         )
     else:
         # Send image
         if START_IMAGE_URL.startswith("http"):
             await update.message.reply_photo(
-                photo=START_IMAGE_URL, caption=text, reply_markup=reply_markup, parse_mode="Markdown"
+                photo=START_IMAGE_URL,
+                caption=text,
+                reply_markup=reply_markup,
+                parse_mode="Markdown"
             )
         else:
             with open(START_IMAGE_URL, "rb") as f:
                 await update.message.reply_photo(
-                    photo=InputFile(f), caption=text, reply_markup=reply_markup, parse_mode="Markdown"
+                    photo=InputFile(f),
+                    caption=text,
+                    reply_markup=reply_markup,
+                    parse_mode="Markdown"
                 )
 
 # ================== CALLBACK QUERY HANDLER ==================
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
+
     if query.data == "talk_baka":
         await query.message.reply_text(
             "Main thik hu, tum kaise ho? 😊\nYou can continue chatting with me here or type /ask <message>",
@@ -99,7 +111,7 @@ def main():
     # Callback buttons
     app.add_handler(CallbackQueryHandler(button_handler))
 
-    # Economy commands
+    # ================= ECONOMY =================
     app.add_handler(CommandHandler("bal", bal))
     app.add_handler(CommandHandler("rob", rob))
     app.add_handler(CommandHandler("kill", kill))
@@ -111,13 +123,20 @@ def main():
     app.add_handler(CommandHandler("leaders", leaders))
     app.add_handler(CommandHandler("economy", economy))
 
-    # Game commands
-    register_game_commands(app)  # /daily & /claim
+    # ================= FUN =================
+    app.add_handler(CommandHandler("slap", slap))
+    app.add_handler(CommandHandler("hug", hug))
+    app.add_handler(CommandHandler("punch", punch))
+    app.add_handler(CommandHandler("kiss", kiss))
+    app.add_handler(CommandHandler("couple", couple))
 
-    # Admin commands
-    register_admin_commands(app)  # /transfer & /remove
+    # ================= GAME =================
+    register_game_commands(app)
 
-    # AI chatbot
+    # ================= ADMIN =================
+    register_admin_commands(app)
+
+    # ================= AI CHAT =================
     app.add_handler(CommandHandler("ask", ask_ai))
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), ai_message_handler))
 
