@@ -14,7 +14,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard = [
         [
             InlineKeyboardButton("💬 Talk to Baka", url="https://t.me/codebotnetwork"),
-            InlineKeyboardButton("✨ Nobita K", url="https://t.me/oye_sparsh")
+            InlineKeyboardButton("✨ Owner", url="https://t.me/oye_sparsh")
         ],
         [
             InlineKeyboardButton("🧸 Friends", url="https://t.me/codebotnetwork"),
