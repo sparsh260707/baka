@@ -1,35 +1,35 @@
-import json
-from pathlib import Path
+import os
+import pymongo
+from dotenv import load_dotenv
 
-DB_FILE = Path("database/users.json")
+# Load Environment Variables
+load_dotenv()
 
-def load():
-    try:
-        if not DB_FILE.exists(): return {}
-        with open(DB_FILE, "r") as f:
-            return json.load(f)
-    except:
-        return {}
+# MongoDB Configuration
+MONGO_URL = os.getenv("MONGO_URL")
+if not MONGO_URL:
+    print("⚠️ MONGO_URL not found in .env! Using local connection.")
+    MONGO_URL = "mongodb://localhost:27017"
 
-def save(data):
-    try:
-        DB_FILE.parent.mkdir(parents=True, exist_ok=True)
-        with open(DB_FILE, "w") as f:
-            json.dump(data, f, indent=2)
-    except:
-        pass
+# Initialize Client
+client = pymongo.MongoClient(MONGO_URL)
+db = client["baka_bot_db"]
+users_col = db["users"]
 
 def get_user(user, chat_id=None):
-    # Safety Check: Agar user object null hai toh wahin ruk jao
+    """User entry nikaalta hai ya MongoDB mein naya banata hai."""
     if not user or not hasattr(user, 'id'):
         return None
 
-    data = load()
-    uid = str(user.id)
+    uid = user.id
+    
+    # User ko find karein
+    user_data = users_col.find_one({"id": uid})
 
-    if uid not in data:
-        data[uid] = {
-            "id": user.id,
+    if not user_data:
+        # Naya user document
+        user_data = {
+            "id": uid,
             "name": getattr(user, 'first_name', "Unknown"),
             "groups": [],
             "bal": 200,
@@ -39,25 +39,24 @@ def get_user(user, chat_id=None):
             "kills": 0,
             "rob": 0
         }
+        users_col.insert_one(user_data)
     
-    # Purane users ke liye check
-    if "groups" not in data[uid]:
-        data[uid]["groups"] = []
-
+    # Agar chat_id diya hai aur woh groups list mein nahi hai
     if chat_id is not None:
-        if chat_id not in data[uid]["groups"]:
-            data[uid]["groups"].append(chat_id)
+        # $addToSet duplicate se bachata hai aur array me add karta hai
+        users_col.update_one(
+            {"id": uid},
+            {"$addToSet": {"groups": chat_id}}
+        )
+        # Update ke baad fresh data lein
+        user_data = users_col.find_one({"id": uid})
 
-    save(data)
-    return data[uid]
+    return user_data
 
 def get_group_members(chat_id):
-    data = load()
-    members = []
-    for u in data.values():
-        # 'id' aur 'groups' check karein bina crash hue
-        if not u.get("id"): continue
-        user_groups = u.get("groups", [])
-        if chat_id in user_groups or str(chat_id) in user_groups:
-            members.append(u)
-    return members
+    """Uss group ke saare members (Offline/Online) return karta hai."""
+    # MongoDB query: Unn users ko dhundo jinke 'groups' list mein ye chat_id hai
+    query = {"groups": chat_id}
+    members_cursor = users_col.find(query)
+    
+    return list(members_cursor)
