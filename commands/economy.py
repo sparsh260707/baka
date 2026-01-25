@@ -54,6 +54,15 @@ def get_all_users():
     """MongoDB se saare users ki list nikaalta hai."""
     return list(users_col.find())
 
+# ===== STATUS CHECK WRAPPER =====
+async def can_use_economy(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """Check if economy is open or if user is admin."""
+    # Agar economy OFF hai aur user ADMIN NAHI hai toh mana kar do
+    if not is_economy_on(update.effective_chat.id) and not await is_user_admin(update, context):
+        await update.message.reply_text("⚠️ Economy system is currently disabled.\nFor reopen use: /open")
+        return False
+    return True
+    
 # ===== ADMIN COMMANDS: /open & /close =====
 async def close_economy(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await is_user_admin(update, context):
