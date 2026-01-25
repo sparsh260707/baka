@@ -18,7 +18,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ],
         [
             InlineKeyboardButton("🧸 Friends", url="https://t.me/codebotnetwork"),
-            InlineKeyboardButton("🎮 Games", url=f"https://t.me/{context.bot.username}")
+            InlineKeyboardButton("🎮 ⏤͟͞ 𝙎𝙋𝘼𝙍𝙎𝙃 𝘽𝘼𝙉𝙄𝙔𝘼", url=f"https://t.me/{context.bot.username}")
         ],
         [
             InlineKeyboardButton("➕ Add me to your group", url=f"https://t.me/{context.bot.username}?startgroup=true")
