@@ -8,18 +8,18 @@ from telegram import Update
 from telegram.ext import ContextTypes
 from telegram.constants import ParseMode, ChatType
 
-# Correct imports based on your structure:
+# Correct imports based on your structure
 from utils import get_mention          # utils.py in baka/
 from database.db import get_group_members  # db.py in database/
 
 # --- Path Settings ---
-ASSETS = Path("baka/assets")
+BASE_DIR = Path(__file__).parent.parent  # root of your bot
+ASSETS = BASE_DIR / "assets"
 BG_PATH = ASSETS / "cppic.png"
 FALLBACK_PATH = ASSETS / "upic.png"
-TEMP_DIR = Path("temp_couples")
+TEMP_DIR = BASE_DIR / "temp_couples"
 
-if not TEMP_DIR.exists():
-    TEMP_DIR.mkdir(parents=True, exist_ok=True)
+TEMP_DIR.mkdir(parents=True, exist_ok=True)
 
 couple_cache = {}
 
@@ -68,9 +68,11 @@ async def couple(update: Update, context: ContextTypes.DEFAULT_TYPE):
             photo=data['img_path'], caption=data['caption'], parse_mode=ParseMode.HTML
         )
 
+    # Background fallback check
     if not BG_PATH.exists():
-        return await update.message.reply_text(
-            "❌ Error: 'cppic.png' background is missing in assets!"
+        BG_PATH = FALLBACK_PATH
+        await update.message.reply_text(
+            "⚠️ Warning: 'cppic.png' missing, using fallback background."
         )
 
     msg = await update.message.reply_text("ɢᴇɴᴇʀᴀᴛɪɴɢ ᴄᴏᴜᴘʟᴇs ɪᴍᴀɢᴇ...")
