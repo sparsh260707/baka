@@ -9,8 +9,8 @@ from telegram.ext import ContextTypes
 from telegram.constants import ParseMode, ChatType
 
 # Correct imports based on your structure:
-from ..utils import get_mention          # utils.py in baka/
-from ..database.db import get_group_members  # db.py in database/
+from utils import get_mention          # utils.py in baka/
+from database.db import get_group_members  # db.py in database/
 
 # --- Path Settings ---
 ASSETS = Path("baka/assets")
