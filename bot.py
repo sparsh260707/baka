@@ -19,6 +19,7 @@ from commands.admin import register_admin_commands
 from commands.chatbot import ask_ai, ai_message_handler
 from commands.fun import slap, hug, punch, kiss
 from commands.couple import couple
+from commands.shop import items, item, gift
 
 # ================== START IMAGE ==================
 START_IMAGE_URL = "https://files.catbox.moe/yzpfuh.jpg"
@@ -86,6 +87,9 @@ def main():
     app.add_handler(CommandHandler("give", give))
     app.add_handler(CommandHandler("myrank", myrank))
     app.add_handler(CommandHandler("toprich", toprich))
+    app.add_handler(CommandHandler("items", items))
+    app.add_handler(CommandHandler("item", item))
+    app.add_handler(CommandHandler("gift", gift))
     app.add_handler(CommandHandler("leaders", leaders))
     app.add_handler(CommandHandler("economy", economy))
     app.add_handler(CommandHandler("slap", slap))
