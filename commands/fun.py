@@ -109,16 +109,16 @@ async def kiss(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ==================== COUPLE ====================
 
 async def couple(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    couple_images = [
+    couple_videos = [
         "https://files.catbox.moe/ehwyr2.mp4",
         "https://files.catbox.moe/svkyzy.mp4"
     ]
 
     chat = update.effective_chat
-    members = []
 
-    async for m in context.bot.get_chat_administrators(chat.id):
-        members.append(m.user)
+    admins = await context.bot.get_chat_administrators(chat.id)
+
+    members = [m.user for m in admins if not m.user.is_bot]
 
     if len(members) < 2:
         await update.message.reply_text("❌ Not enough users in group!")
@@ -137,7 +137,7 @@ Love is in the air 💘
 """
 
     await update.message.reply_video(
-        video=random.choice(couple_images),
+        video=random.choice(couple_videos),
         caption=text,
         parse_mode="HTML"
     )
