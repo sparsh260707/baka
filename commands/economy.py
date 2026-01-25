@@ -79,21 +79,32 @@ async def open_economy(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 # ===== /bal =====
 async def bal(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not await can_use_economy(update, context): return
+    if not await can_use_economy(update, context): 
+        return
 
     user_obj = update.effective_user
     if update.message.reply_to_message:
         user_obj = update.message.reply_to_message.from_user
 
     user_data = get_user(user_obj)
+
+    # Rank calculate
+    all_users = get_all_users()
+    all_users.sort(key=lambda x: x.get("bal", 0), reverse=True)
+    rank = next((i for i, u in enumerate(all_users, 1) if u.get("id") == user_obj.id), "N/A")
+
     bal_amt = user_data.get("bal", 0)
+    kills = user_data.get("kills", 0)
     status = "dead 💀" if is_dead(user_data) else "alive ❤️"
 
     text = (
-        f"👤 Name: {user_obj.first_name}\n"
+        f"👤 Name: {fancy_name(user_data)}\n"
         f"💰 Balance: ${bal_amt}\n"
-        f"❤️ Status: {status}"
+        f"🏆 Global Rank: {rank}\n"
+        f"❤️ Status: {status}\n"
+        f"⚔️ Kills: {kills}"
     )
+
     await update.message.reply_text(text)
 
 # ===== /toprich =====
