@@ -6,7 +6,6 @@ from telegram.ext import (
 )
 from dotenv import load_dotenv
 
-# ================== LOAD ENV ==================
 load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 
@@ -24,19 +23,26 @@ from commands.couple import couple
 # ================== START IMAGE ==================
 START_IMAGE_URL = "https://files.catbox.moe/yzpfuh.jpg"
 
-# ================== AUTO-REGISTER HANDLER ==================
+# ================== AUTO-REGISTER HANDLER (FIXED) ==================
 async def auto_register_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Har message par user ko database mein check/add karta hai."""
-    if update.effective_user and not update.effective_user.is_bot:
-        chat_id = update.effective_chat.id
-        get_user(update.effective_user, chat_id)
+    """Har message par user ko database mein register karta hai safety ke saath."""
+    try:
+        # Check if update has user and it's not a bot
+        user = update.effective_user
+        chat = update.effective_chat
+        
+        if user and not user.is_bot and chat:
+            get_user(user, chat.id)
+    except Exception as e:
+        # Sirf terminal mein print hoga, user ko message nahi jayega
+        print(f"❌ Registration Error: {e}")
 
 # ================== /START COMMAND ==================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     keyboard = [
         [InlineKeyboardButton("💬 Talk to Baka", callback_data="talk_baka"),
-         InlineKeyboardButton("✨ ⏤͟͞ 𝙎𝙋𝘼𝙍𝙎𝙃 𝘽𝘼𝙉𝙄𝙔𝘼", url="https://t.me/oye_sparsh")],
+         InlineKeyboardButton("✨ ⏤͟͞ 𝙎𝙋𝘼𝙍𝙎𝙃 𝘽𝘼𝙉I𝙔𝘼", url="https://t.me/oye_sparsh")],
         [InlineKeyboardButton("🧸 Friends", url="https://t.me/codebotnetwork"),
          InlineKeyboardButton("🎮 GAMES", url=f"https://t.me/{context.bot.username}")],
         [InlineKeyboardButton("➕ Add me to your group", url=f"https://t.me/{context.bot.username}?startgroup=true")]
@@ -58,20 +64,20 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.message.reply_text("Main thik hu, tum kaise ho? 😊")
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
-    print(f"❌ Error: {context.error}")
+    print(f"❌ Critical Bot Error: {context.error}")
 
 # ================== MAIN ==================
 def main():
     app = Application.builder().token(BOT_TOKEN).build()
 
-    # Sabse pehle registration handler (Priority group -1)
+    # Priority group -1: Registration runs BEFORE commands
     app.add_handler(MessageHandler(filters.ALL, auto_register_handler), group=-1)
 
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_error_handler(error_handler)
 
-    # Economy & Fun
+    # Handlers mapping
     app.add_handler(CommandHandler("bal", bal))
     app.add_handler(CommandHandler("rob", rob))
     app.add_handler(CommandHandler("kill", kill))
@@ -94,7 +100,7 @@ def main():
     app.add_handler(CommandHandler("ask", ask_ai))
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), ai_message_handler))
 
-    print("🤖 Bot is running...")
+    print("🤖 Baka Bot is online and watching over you!")
     app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
