@@ -30,10 +30,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def economy(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("""
 📖 Economy Commands:
-/bal
+/bal (or reply)
 /rob (reply)
 /kill (reply)
-/revive
+/revive (or reply)
 /protect 1d
 /give (reply) amount
 /toprich
@@ -43,7 +43,14 @@ async def economy(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 async def bal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data = load()
-    u = get_user(data, update.effective_user)
+
+    # self or reply
+    if update.message.reply_to_message:
+        target_user = update.message.reply_to_message.from_user
+    else:
+        target_user = update.effective_user
+
+    u = get_user(data, target_user)
     salary(u)
 
     all_users = list(data.values())
@@ -52,7 +59,7 @@ async def bal(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     status = "dead" if is_dead(u) else "alive"
 
-    msg = f"""👤 Name: {update.effective_user.first_name}
+    msg = f"""👤 Name: {target_user.first_name}
 💰 Balance: ${u['bal']}
 🏆 Global Rank: {rank}
 ❤️ Status: {status}
@@ -138,11 +145,16 @@ async def revive(update: Update, context: ContextTypes.DEFAULT_TYPE):
     reviver_user = update.effective_user
     reviver = get_user(data, reviver_user)
 
-    if reviver["bal"] < 500:
-        return await update.message.reply_text("❌ You need $500 to revive.")
-
     # self revive
     if not update.message.reply_to_message:
+        if not is_dead(reviver):
+            return await update.message.reply_text(
+                f"✅ {fancy_name(reviver_user)} is already alive!"
+            )
+
+        if reviver["bal"] < 500:
+            return await update.message.reply_text("❌ You need $500 to revive.")
+
         reviver["bal"] -= 500
         reviver["dead_until"] = 0
         save(data)
@@ -151,6 +163,14 @@ async def revive(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # revive other
     target_user = update.message.reply_to_message.from_user
     target = get_user(data, target_user)
+
+    if not is_dead(target):
+        return await update.message.reply_text(
+            f"✅ {fancy_name(target_user)} is already alive!"
+        )
+
+    if reviver["bal"] < 500:
+        return await update.message.reply_text("❌ You need $500 to revive.")
 
     reviver["bal"] -= 500
     target["dead_until"] = 0
