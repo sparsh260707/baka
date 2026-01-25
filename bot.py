@@ -12,7 +12,7 @@ BOT_TOKEN = os.getenv("BOT_TOKEN")
 # ================== IMPORT DATABASE & COMMANDS ==================
 from database.db import get_user
 from commands.economy import (
-    bal, rob, kill, revive, protect, give, myrank, toprich, leaders, economy
+    bal, rob, kill, revive, protect, give, myrank, toprich, leaders, economy, open_economy, close_economy 
 )
 from commands.game import register_game_commands
 from commands.admin import register_admin_commands
@@ -93,6 +93,8 @@ def main():
     app.add_handler(CommandHandler("punch", punch))
     app.add_handler(CommandHandler("kiss", kiss))
     app.add_handler(CommandHandler("couple", couple))
+    app.add_handler(CommandHandler("open", open_economy)) 
+    app.add_handler(CommandHandler("close", close_economy)) 
 
     register_game_commands(app)
     register_admin_commands(app)
