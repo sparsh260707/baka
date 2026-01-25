@@ -2,47 +2,20 @@
 import random
 from telegram import Update
 from telegram.ext import ContextTypes
-from database.db import load, save
 
 # ==================== Helpers ====================
 
-def mention_id(uid, name):
-    name = name.replace("<", "").replace(">", "")
-    return f'<a href="tg://user?id={uid}">{name}</a>'
-
 def mention(user):
-    return mention_id(user.id, user.first_name)
+    name = user.first_name.replace("<", "").replace(">", "")
+    return f'<a href="tg://user?id={user.id}">{name}</a>'
 
 def get_target(update: Update):
     if update.message.reply_to_message:
         return update.message.reply_to_message.from_user
     return None
 
-# ==================== Track Users ====================
-def track_user(update: Update, user=None):
-    if not update.effective_chat:
-        return
-
-    if update.effective_chat.type not in ["group", "supergroup"]:
-        return
-
-    chat_id = str(update.effective_chat.id)
-    if user is None:
-        user = update.effective_user
-
-    data = load()
-
-    if chat_id not in data:
-        data[chat_id] = {}
-
-    if str(user.id) not in data[chat_id]:
-        data[chat_id][str(user.id)] = {"name": user.first_name}
-        save(data)
-
-# ==================== SLAP ====================
+# ==================== /slap ====================
 async def slap(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    track_user(update)
-
     videos = [
         "https://files.catbox.moe/ncuiok.mp4",
         "https://files.catbox.moe/9yo533.mp4",
@@ -52,8 +25,7 @@ async def slap(update: Update, context: ContextTypes.DEFAULT_TYPE):
     target = get_target(update)
 
     if not target:
-        await update.message.reply_text("❗ Kisi ke message pe reply karke /slap likho")
-        return
+        return await update.message.reply_text("❗ Kisi ke message pe reply karke /slap likho")
 
     text = f"{mention(sender)} slapped {mention(target)} 👋"
 
@@ -63,10 +35,8 @@ async def slap(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="HTML"
     )
 
-# ==================== HUG ====================
+# ==================== /hug ====================
 async def hug(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    track_user(update)
-
     videos = [
         "https://files.catbox.moe/ehwyr2.mp4",
         "https://files.catbox.moe/svkyzy.mp4"
@@ -76,8 +46,7 @@ async def hug(update: Update, context: ContextTypes.DEFAULT_TYPE):
     target = get_target(update)
 
     if not target:
-        await update.message.reply_text("❗ Kisi ke message pe reply karke /hug likho")
-        return
+        return await update.message.reply_text("❗ Kisi ke message pe reply karke /hug likho")
 
     text = f"{mention(sender)} sent a hug to {mention(target)} 🤗"
 
@@ -87,10 +56,8 @@ async def hug(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="HTML"
     )
 
-# ==================== PUNCH ====================
+# ==================== /punch ====================
 async def punch(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    track_user(update)
-
     videos = [
         "https://files.catbox.moe/yzqsz6.mp4",
         "https://files.catbox.moe/6gpa4z.mp4"
@@ -100,8 +67,7 @@ async def punch(update: Update, context: ContextTypes.DEFAULT_TYPE):
     target = get_target(update)
 
     if not target:
-        await update.message.reply_text("❗ Kisi ke message pe reply karke /punch likho")
-        return
+        return await update.message.reply_text("❗ Kisi ke message pe reply karke /punch likho")
 
     text = f"{mention(sender)} punched {mention(target)} really hard 👊"
 
@@ -111,10 +77,8 @@ async def punch(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="HTML"
     )
 
-# ==================== KISS ====================
+# ==================== /kiss ====================
 async def kiss(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    track_user(update)
-
     videos = [
         "https://files.catbox.moe/ehi5uo.mp4",
         "https://files.catbox.moe/bwscnj.mp4"
@@ -124,8 +88,7 @@ async def kiss(update: Update, context: ContextTypes.DEFAULT_TYPE):
     target = get_target(update)
 
     if not target:
-        await update.message.reply_text("❗ Kisi ke message pe reply karke /kiss likho")
-        return
+        return await update.message.reply_text("❗ Kisi ke message pe reply karke /kiss likho")
 
     text = f"{mention(sender)} gave a sweet kiss to {mention(target)} 😘💋"
 
@@ -134,3 +97,63 @@ async def kiss(update: Update, context: ContextTypes.DEFAULT_TYPE):
         caption=text,
         parse_mode="HTML"
     )
+
+# ==================== /bite ====================
+async def bite(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    videos = [
+        "https://files.catbox.moe/q91bhd.mp4",
+        "https://files.catbox.moe/q91bhd.mp4",
+    ]
+
+    sender = update.effective_user
+    target = get_target(update)
+
+    if not target:
+        return await update.message.reply_text("❗ Kisi ke message pe reply karke /bite likho")
+
+    text = f"😈 {mention(sender)} gave a naughty bite to {mention(target)} 😁"
+
+    await update.message.reply_video(
+        video=random.choice(videos),
+        caption=text,
+        parse_mode="HTML"
+    )
+
+# ==================== /crush ====================
+async def crush(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    target = get_target(update)
+    if not target:
+        return await update.message.reply_text("Reply to someone to check their crush 😁")
+
+    user = update.effective_user
+    percent = random.randint(40, 100)
+
+    text = (
+        f"💘 {mention(user)} ka secret crush hai {mention(target)}\n"
+        f"❤️ Crush level: {percent}%"
+    )
+
+    await update.message.reply_text(text, parse_mode="HTML")
+
+# ==================== /brain ====================
+async def brain(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    target = get_target(update)
+    if not target:
+        return await update.message.reply_text("Reply to someone !🤖")
+
+    iq = random.randint(50, 160)
+    text = f"🧠 IQ level of {mention(target)} is {iq}% 😎"
+
+    await update.message.reply_text(text, parse_mode="HTML")
+
+# ==================== /id ====================
+async def id_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    user = update.effective_user
+    chat = update.effective_chat
+
+    text = (
+        f"👤 Your User ID: {user.id}\n"
+        f"👥 Group ID: {chat.id}"
+    )
+
+    await update.message.reply_text(text)
