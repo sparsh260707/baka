@@ -59,7 +59,7 @@ async def can_use_economy(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # 2. Check if user is admin
     is_admin = await is_user_admin(update, context)
 
-    # 3. Agar system CLOSE hai aur user ADMIN NAHI hai, toh block karo
+    # 3. Logic: Agar system CLOSE hai aur user ADMIN NAHI hai, toh block karo
     if not is_open and not is_admin:
         await update.message.reply_text("⚠️ For reopen use: /open")
         return False 
@@ -205,100 +205,4 @@ async def revive(update: Update, context: ContextTypes.DEFAULT_TYPE):
     update_user_data(target_user.id, target)
 
     msg = "❤️ You revived yourself! -$500" if reviver_user.id == target_user.id else f"❤️ {fancy_name(reviver)} revived {target_user.first_name}! -$500"
-    await update.message.reply_text(msg)
-
-# ===== /protect =====
-async def protect(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not await can_use_economy(update, context): return
-
-    user_id = update.effective_user.id
-    user = get_user_data(user_id, update.effective_user)
-
-    if not context.args or context.args[0] not in ["1d", "2d", "3d"]:
-        return await update.message.reply_text("⚠️ Usage: /protect 1d/2d/3d")
-
-    days = context.args[0]
-    costs = {"1d": 200, "2d": 500, "3d": 800}
-
-    if user.get("bal", 200) < costs[days]:
-        return await update.message.reply_text(f"❌ You need ${costs[days]} to protect.")
-
-    user["bal"] -= costs[days]
-    user["protect_until"] = now() + int(days[0]) * 24 * 60 * 60
-    update_user_data(user_id, user)
-    await update.message.reply_text(f"🛡️ You are now protected for {days}.")
-
-# ===== /give =====
-async def give(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not await can_use_economy(update, context): return
-
-    if not update.message.reply_to_message or not context.args:
-        return await update.message.reply_text("Reply to someone and specify amount: /give <amount>")
-
-    giver_user = update.effective_user
-    receiver_user = update.message.reply_to_message.from_user
-    
-    giver = get_user_data(giver_user.id, giver_user)
-    receiver = get_user_data(receiver_user.id, receiver_user)
-
-    try:
-        amount = int(context.args[0])
-    except:
-        return await update.message.reply_text("❌ Invalid amount.")
-
-    if giver.get("bal", 200) < amount:
-        return await update.message.reply_text("❌ You don't have enough money.")
-
-    giver["bal"] -= amount
-    receiver["bal"] = receiver.get("bal", 200) + amount
-
-    update_user_data(giver_user.id, giver)
-    update_user_data(receiver_user.id, receiver)
-    
-    g_name = giver.get("name", "Giver")
-    r_name = receiver.get("name", "Receiver")
-    await update.message.reply_text(f"💰 {g_name} gave ${amount} to {r_name}")
-
-# ===== /myrank =====
-async def myrank(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not await can_use_economy(update, context): return
-
-    user = get_user_data(update.effective_user.id, update.effective_user)
-    all_users = get_all_users()
-    all_users.sort(key=lambda x: x.get("bal", 0), reverse=True)
-    
-    rank = 1
-    for i, u in enumerate(all_users, 1):
-        if u.get("id") == update.effective_user.id:
-            rank = i
-            break
-            
-    await update.message.reply_text(f"🏆 Your global rank is {rank}")
-
-# ===== /leaders =====
-async def leaders(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not await can_use_economy(update, context): return
-
-    all_users = get_all_users()
-    all_users.sort(key=lambda x: x.get("kills", 0), reverse=True)
-    msg = "🔥 Top 10 Bomb Game Players:\n\n"
-    for i, u in enumerate(all_users[:10], 1):
-        name = u.get("name", "Unknown")
-        msg += f"{i}. {name} — {u.get('kills', 0)} kills\n"
-    await update.message.reply_text(msg)
-    
-# ===== /economy =====
-async def economy(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    msg = """⚡️ Baka Bot Economy Guide
-
-📌 User Commands:
-/bal, /toprich, /rob, /kill, /protect, /revive, /give, /myrank, /leaders
-
-👑 Admin Commands:
-/open — Everyone can use economy
-/close — Only admins can use economy
-
-🔒 Protection:
-1-day = $200 | 2-day = $500 | 3-day = $800
-Dead users revive after 5 hours or use /revive ($500)."""
     await update.message.reply_text(msg)
