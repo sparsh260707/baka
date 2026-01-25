@@ -1,3 +1,4 @@
+# database/db.py
 import os
 import pymongo
 from datetime import datetime
@@ -5,57 +6,72 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-# MongoDB Connection
-MONGO_URL = os.getenv("MONGO_URL")
-if not MONGO_URL:
-    MONGO_URL = "mongodb://localhost:27017"
+# ===== MongoDB Connection =====
+MONGO_URL = os.getenv("MONGO_URL") or "mongodb://localhost:27017"
 
 client = pymongo.MongoClient(MONGO_URL)
 db = client["baka_bot_db"]
 
-# Collections setup
+# ===== Collections =====
 users_col = db["users"]
 groups_claim_col = db["groups_claim"]
-settings_col = db["settings"] # Naya collection settings ke liye
+settings_col = db["settings"]
 
-# --- COMPATIBILITY FUNCTIONS (Economy/Old commands ke liye) ---
+# ===== Compatibility (old json system) =====
 def load():
     return {}
 
 def save(data):
     pass
-# -----------------------------------------------------------
 
+# ===== USER SYSTEM =====
 def get_user(user, chat_id=None):
-    """Hamesha ek dictionary return karega taaki 'NoneType' error na aaye."""
-    if not user or not hasattr(user, 'id'):
-        return {"id": 0, "groups": [], "bal": 0, "name": "Unknown"}
+    """
+    Always returns a valid user dict.
+    Auto-creates user if not exists.
+    """
+    if not user or not hasattr(user, "id"):
+        return {
+            "id": 0,
+            "name": "Unknown",
+            "groups": [],
+            "bal": 0,
+            "dead_until": 0,
+            "protect_until": 0,
+            "last_salary": 0,
+            "kills": 0,
+            "rob": 0,
+        }
 
     uid = user.id
     user_data = users_col.find_one({"id": uid})
 
     if not user_data:
-        # Naya user document banayein
         user_data = {
             "id": uid,
-            "name": getattr(user, 'first_name', f"User_{uid}"),
+            "name": getattr(user, "first_name", f"User_{uid}"),
             "groups": [],
             "bal": 200,
             "dead_until": 0,
             "protect_until": 0,
             "last_salary": 0,
             "kills": 0,
-            "rob": 0
+            "rob": 0,
+            "created_at": datetime.utcnow(),
         }
         users_col.insert_one(user_data)
-    
-    # Safety: Ensure essential keys exist in returned data
-    if "groups" not in user_data: user_data["groups"] = []
-    if "name" not in user_data: user_data["name"] = getattr(user, 'first_name', f"User_{uid}")
-    if "bal" not in user_data: user_data["bal"] = 0
 
+    # ===== Safety keys =====
+    if "groups" not in user_data: user_data["groups"] = []
+    if "name" not in user_data: user_data["name"] = getattr(user, "first_name", f"User_{uid}")
+    if "bal" not in user_data: user_data["bal"] = 0
+    if "dead_until" not in user_data: user_data["dead_until"] = 0
+    if "protect_until" not in user_data: user_data["protect_until"] = 0
+    if "kills" not in user_data: user_data["kills"] = 0
+    if "rob" not in user_data: user_data["rob"] = 0
+
+    # ===== Group tracking =====
     if chat_id is not None:
-        # Update MongoDB and local object
         if chat_id not in user_data["groups"]:
             users_col.update_one(
                 {"id": uid},
@@ -66,41 +82,51 @@ def get_user(user, chat_id=None):
     return user_data
 
 def get_group_members(chat_id):
-    """Group members fetch karein safety ke saath."""
-    query = {"groups": chat_id}
-    cursor = users_col.find(query)
-    return [u for u in cursor if u is not None]
+    """
+    Returns all users who are marked as members of this group.
+    """
+    return list(users_col.find({"groups": chat_id}))
 
-# --- CLAIM LOGIC FUNCTIONS ---
-
+# ===== CLAIM SYSTEM =====
 def is_group_claimed(chat_id):
-    """Check karta hai ki group ne reward claim kiya hai ya nahi."""
     data = groups_claim_col.find_one({"chat_id": chat_id})
-    return data is not None and data.get("claimed", False)
+    return bool(data and data.get("claimed", False))
 
 def mark_group_claimed(chat_id, user_id):
-    """Group ko permanent claimed mark karta hai."""
-    groups_claim_col.insert_one({
-        "chat_id": chat_id,
-        "claimed": True,
-        "claimed_by": user_id,
-        "at": datetime.now()
-    })
+    groups_claim_col.update_one(
+        {"chat_id": chat_id},
+        {
+            "$set": {
+                "chat_id": chat_id,
+                "claimed": True,
+                "claimed_by": user_id,
+                "at": datetime.utcnow(),
+            }
+        },
+        upsert=True
+    )
 
-# --- ECONOMY CONTROL FUNCTIONS (Open/Close) ---
-
+# ===== ECONOMY ON/OFF SYSTEM =====
 def is_economy_on(chat_id):
-    """Sahi tareeke se status fetch karta hai."""
+    """
+    Default = ON
+    """
     res = settings_col.find_one({"chat_id": chat_id})
-    # Agar data nahi hai toh default True (Open) rahega
     if not res:
         return True
     return res.get("economy_status", True)
-    
-def set_economy_status(chat_id, status):
-    """Economy status (True/False) ko update karta hai."""
+
+def set_economy_status(chat_id, status: bool):
     settings_col.update_one(
         {"chat_id": chat_id},
-        {"$set": {"economy_status": status}},
+        {"$set": {"economy_status": bool(status)}},
         upsert=True
     )
+
+# ===== INDEXES (optional but good for performance) =====
+try:
+    users_col.create_index("id", unique=True)
+    settings_col.create_index("chat_id", unique=True)
+    groups_claim_col.create_index("chat_id", unique=True)
+except:
+    pass
