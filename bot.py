@@ -3,44 +3,46 @@ from telegram.ext import Application, CommandHandler, ContextTypes
 
 from config import BOT_TOKEN
 
-# commands
+# ================== IMPORT ECONOMY COMMANDS ==================
 from commands.economy import bal, rob, kill, revive, protect
 
-# ================== START ==================
-
+# ================== /START COMMAND ==================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
 
-    # Inline buttons: Update, Support, Owner
+    # Inline buttons (2x2 grid + 1 full-width button)
     keyboard = [
         [
-            InlineKeyboardButton("🎮 Update", url=f"https://t.me/codebotnetwork"),
-            InlineKeyboardButton("🛠 Support", url="https://t.me/codebotnetwork"),  # replace with your support link
-            InlineKeyboardButton("👤 Owner", url="https://t.me/oye_sparsh")  # replace with owner's username
+            InlineKeyboardButton("💬 Talk to Baka", url="https://t.me/codebotnetwork"),
+            InlineKeyboardButton("✨ Nobita K", url="https://t.me/oye_sparsh")
+        ],
+        [
+            InlineKeyboardButton("🧸 Friends", url="https://t.me/codebotnetwork"),
+            InlineKeyboardButton("🎮 Games", url=f"https://t.me/{context.bot.username}")
+        ],
+        [
+            InlineKeyboardButton("➕ Add me to your group", url=f"https://t.me/{context.bot.username}?startgroup=true")
         ]
     ]
 
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    text = f"""
-👋 Hey {user.first_name}!
+    # Fancy Unicode + Markdown styling
+    text = f"""✨ 𝗛𝗲𝘆, *{user.first_name}* ~
+💌 You're Talking To 𝓑𝓪𝓴𝓪, A _Sassy Cutie Girl_ 💕
 
-Welcome to the 💰 *Economy Crime Game Bot* 😈
+👇 Choose An Option Below:"""
 
-👇 Click below to start playing:
-"""
-
-    # If the command is used in a group/channel
-    if update.message.chat.type != "private":
-        # Tell user to check private chat
+    # If command is used in a group/channel
+    if update.effective_chat.type != "private":
+        # Notify user to open private chat
         await update.message.reply_text(
-            "📩 Check your private chat to start the game!",
+            "📩 Check your private chat to start!",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton("💬 Open Private", url=f"https://t.me/{context.bot.username}")]
             ])
         )
-
-        # Send the main start message in private
+        # Send main start message in private
         await context.bot.send_message(
             chat_id=user.id,
             text=text,
@@ -48,19 +50,18 @@ Welcome to the 💰 *Economy Crime Game Bot* 😈
             parse_mode="Markdown"
         )
     else:
-        # If command used in private chat, just send the start message
+        # Private chat: send start message directly
         await update.message.reply_text(
-            text,
+            text=text,
             reply_markup=reply_markup,
             parse_mode="Markdown"
         )
 
-# ================== MAIN ==================
-
+# ================== MAIN BOT SETUP ==================
 def main():
     app = Application.builder().token(BOT_TOKEN).build()
 
-    # Add command handlers
+    # Command handlers
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("bal", bal))
     app.add_handler(CommandHandler("rob", rob))
@@ -71,5 +72,6 @@ def main():
     print("🤖 Bot is running...")
     app.run_polling()
 
+# ================== RUN BOT ==================
 if __name__ == "__main__":
     main()
