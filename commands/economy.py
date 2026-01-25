@@ -86,8 +86,6 @@ async def rob(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Only robber sees their status messages
     if is_dead(robber):
         return await update.message.reply_text("❌ You are dead.")
-    if is_dead(victim):
-        return await update.message.reply_text("❌ Target is dead.")
     if is_protected(victim):
         return await update.message.reply_text("🛡️ Target is protected.")
     if victim.get("bal", 0) <= 0:
