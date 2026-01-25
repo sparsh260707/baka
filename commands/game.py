@@ -1,6 +1,6 @@
 # commands/game.py
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
 from telegram import Update
 from telegram.ext import ContextTypes, CommandHandler
 from database.db import load, save, get_user
@@ -26,14 +26,16 @@ async def claim(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text("❌ At least 100 members are required to claim the reward!")
         return
 
+    # Dynamic reward: 1$ per 10 members
+    reward = max(100, members_count // 10)  # Minimum 100$
+    
     # Load DB
     data = load()
     user = get_user(data, update.effective_user)
-    # Give reward (example: 500)
-    user["bal"] += 500
+    user["bal"] += reward
     save(data)
 
-    await update.message.reply_text("✅ You claimed the group reward of $500!")
+    await update.message.reply_text(f"✅ You claimed the group reward of ${reward}!")
 
 # ====================== /daily ======================
 async def daily(update: Update, context: ContextTypes.DEFAULT_TYPE):
