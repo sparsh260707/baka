@@ -1,220 +1,147 @@
+# economy.py
+# Final BAKA Economy Commands
+
 import time
 import random
 from telegram import Update
 from telegram.ext import ContextTypes
+from db import get_user_data, update_user_data  # your db.py methods
 
-# ========= DATABASE =========
-
-DB_FILE = "database.json"
-
-import json
-
-def load():
-    try:
-        with open(DB_FILE, "r") as f:
-            return json.load(f)
-    except:
-        return {}
-
-def save(data):
-    with open(DB_FILE, "w") as f:
-        json.dump(data, f, indent=2)
-
+# ===== TIME UTILS =====
 def now():
     return int(time.time())
 
-# ========= USER SYSTEM =========
-
-def get_user(data, tg_user):
-    uid = str(tg_user.id)
-    if uid not in data:
-        data[uid] = {
-            "id": uid,
-            "name": tg_user.first_name,
-            "bal": 0,
-            "kills": 0,
-            "dead_until": 0,
-            "protect_until": 0,
-            "last_salary": 0
-        }
-    return data[uid]
-
+# ===== USER HELPERS =====
 def fancy_name(user):
-    return f"⏤͟͞ {user.first_name.upper()}"
+    return f"⏤͟͞ {user['name'].upper()}"
 
-def is_dead(u):
-    return u["dead_until"] > now()
+def is_dead(user):
+    return user.get("dead_until", 0) > now()
 
-def is_protected(u):
-    return u["protect_until"] > now()
+def is_protected(user):
+    return user.get("protect_until", 0) > now()
 
-def salary(u):
-    if now() - u["last_salary"] >= 12 * 60 * 60:
-        u["bal"] += 50
-        u["last_salary"] = now()
-
-# ========= COMMANDS =========
-
-# /bal
+# ===== /bal =====
 async def bal(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    data = load()
+    target_user = update.message.reply_to_message.from_user if update.message.reply_to_message else update.effective_user
+    user = get_user_data(target_user.id)
 
-    if update.message.reply_to_message:
-        target_user = update.message.reply_to_message.from_user
-    else:
-        target_user = update.effective_user
+    # Set starting balance to 200 if new
+    if "bal" not in user:
+        user["bal"] = 200
 
-    u = get_user(data, target_user)
-    salary(u)
+    # Calculate rank
+    all_users = get_user_data(all_users=True)  # fetch all users from db
+    all_users.sort(key=lambda x: x.get("bal", 0), reverse=True)
+    rank = all_users.index(user) + 1 if user in all_users else 1
 
-    all_users = list(data.values())
-    all_users.sort(key=lambda x: x["bal"], reverse=True)
-    rank = all_users.index(u) + 1
-
-    status = "dead" if is_dead(u) else "alive"
-
+    status = "dead" if is_dead(user) else "alive"
     msg = f"""👤 Name: {target_user.first_name}
-💰 Balance: ${u['bal']}
+💰 Balance: ${user['bal']}
 🏆 Global Rank: {rank}
 ❤️ Status: {status}
-⚔️ Kills: {u['kills']}"""
-
-    save(data)
+⚔️ Kills: {user.get('kills', 0)}"""
+    update_user_data(target_user.id, user)
     await update.message.reply_text(msg)
 
-# /rob
+# ===== /rob =====
 async def rob(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message.reply_to_message:
         return await update.message.reply_text("Reply to someone to rob.")
 
-    data = load()
-
     robber_user = update.effective_user
     victim_user = update.message.reply_to_message.from_user
 
-    robber = get_user(data, robber_user)
-    victim = get_user(data, victim_user)
+    robber = get_user_data(robber_user.id)
+    victim = get_user_data(victim_user.id)
 
     if is_dead(robber):
         return await update.message.reply_text("❌ You are dead.")
-
     if is_dead(victim):
-        return await update.message.reply_text("❌ This user is already dead.")
-
+        return await update.message.reply_text("❌ Target is dead.")
     if is_protected(victim):
-        return await update.message.reply_text("🛡️ This user is protected.")
+        return await update.message.reply_text("🛡️ Target is protected.")
+    if victim.get("bal", 0) <= 0:
+        return await update.message.reply_text("❌ Target has no money.")
 
-    if victim["bal"] <= 0:
-        return await update.message.reply_text("❌ This user has no money.")
-
-    amount = min(victim["bal"], random.randint(10, 100))
-    gained = int(amount * 0.9)
-
+    amount = min(victim.get("bal", 0), random.randint(10, 100))  # steal <= victim balance
+    robber["bal"] = robber.get("bal", 200) + amount
     victim["bal"] -= amount
-    robber["bal"] += gained
 
-    save(data)
+    update_user_data(robber_user.id, robber)
+    update_user_data(victim_user.id, victim)
 
-    msg = f"""👤 {fancy_name(robber_user)} robbed ${amount} from {victim_user.first_name}
-💰 gained: ${gained}"""
+    msg = f"👤 {fancy_name(robber)} robbed ${amount} from {victim_user.first_name}\n💰 Gained: ${amount}"
     await update.message.reply_text(msg)
 
-# /kill
+# ===== /kill =====
 async def kill(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message.reply_to_message:
         return await update.message.reply_text("Reply to someone to kill.")
 
-    data = load()
-
     killer_user = update.effective_user
     victim_user = update.message.reply_to_message.from_user
 
-    killer = get_user(data, killer_user)
-    victim = get_user(data, victim_user)
+    killer = get_user_data(killer_user.id)
+    victim = get_user_data(victim_user.id)
 
     if is_dead(killer):
         return await update.message.reply_text("❌ You are dead.")
-
     if is_dead(victim):
-        return await update.message.reply_text("❌ This user is already dead.")
-
+        return await update.message.reply_text("❌ Target is already dead.")
     if is_protected(victim):
-        return await update.message.reply_text("🛡️ This user is protected.")
+        return await update.message.reply_text("🛡️ Target is protected.")
 
-    victim["dead_until"] = now() + 5 * 60 * 60
+    victim["dead_until"] = now() + 5 * 60 * 60  # 5 hours
 
-    reward = random.randint(50, 200)
-    killer["bal"] += reward
-    killer["kills"] += 1
+    reward = random.randint(150, 170)  # kill reward between 150-170
+    killer["bal"] = killer.get("bal", 200) + reward
+    killer["kills"] = killer.get("kills", 0) + 1
 
-    save(data)
+    update_user_data(killer_user.id, killer)
+    update_user_data(victim_user.id, victim)
 
-    msg = f"""👤 {fancy_name(killer_user)} killed {victim_user.first_name}!
-💰 Earned: ${reward}"""
+    msg = f"👤 {fancy_name(killer)} killed {victim_user.first_name}!\n💰 Earned: ${reward}"
     await update.message.reply_text(msg)
 
-# /revive
+# ===== /revive =====
 async def revive(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    data = load()
-
     reviver_user = update.effective_user
-    reviver = get_user(data, reviver_user)
+    reviver = get_user_data(reviver_user.id)
 
-    # self revive
-    if not update.message.reply_to_message:
-        if not is_dead(reviver):
-            return await update.message.reply_text(
-                f"✅ {fancy_name(reviver_user)} is already alive!"
-            )
-
-        if reviver["bal"] < 500:
-            return await update.message.reply_text("❌ You need $500 to revive.")
-
-        reviver["bal"] -= 500
-        reviver["dead_until"] = 0
-        save(data)
-        return await update.message.reply_text("❤️ You revived yourself! -$500")
-
-    # revive other
-    target_user = update.message.reply_to_message.from_user
-    target = get_user(data, target_user)
+    target_user = update.message.reply_to_message.from_user if update.message.reply_to_message else reviver_user
+    target = get_user_data(target_user.id)
 
     if not is_dead(target):
-        return await update.message.reply_text(
-            f"✅ {fancy_name(target_user)} is already alive!"
-        )
+        return await update.message.reply_text(f"✅ {target_user.first_name} is already alive!")
 
-    if reviver["bal"] < 500:
+    if reviver.get("bal", 200) < 500:
         return await update.message.reply_text("❌ You need $500 to revive.")
 
     reviver["bal"] -= 500
     target["dead_until"] = 0
 
-    save(data)
+    update_user_data(reviver_user.id, reviver)
+    update_user_data(target_user.id, target)
 
-    msg = f"❤️ {fancy_name(reviver_user)} revived {target_user.first_name}! -$500"
+    if target_user.id == reviver_user.id:
+        msg = "❤️ You revived yourself! -$500"
+    else:
+        msg = f"❤️ {fancy_name(reviver)} revived {target_user.first_name}! -$500"
     await update.message.reply_text(msg)
 
-# /protect
+# ===== /protect =====
 async def protect(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    data = load()
-    user = update.effective_user
-    u = get_user(data, user)
+    user = get_user_data(update.effective_user.id)
 
-    if not context.args:
-        return await update.message.reply_text("⚠️ Usage: /protect 1d")
+    if not context.args or context.args[0] != "1d":
+        return await update.message.reply_text("⚠️ Usage: /protect 1d (only 1d allowed)")
 
-    days = context.args[0]
+    if user.get("bal", 200) < 200:
+        return await update.message.reply_text("❌ You need $200 to protect.")
 
-    if days != "1d":
-        return await update.message.reply_text("❌ Only 1d protection allowed.")
+    user["bal"] -= 200
+    user["protect_until"] = now() + 24 * 60 * 60
 
-    if u["bal"] < 200:
-        return await update.message.reply_text("❌ You need $200.")
-
-    u["bal"] -= 200
-    u["protect_until"] = now() + 24 * 60 * 60
-
-    save(data)
-
-    await update.message.reply_text("🛡️ You are now protected for 1d.")
+    update_user_data(update.effective_user.id, user)
+    await update.message.reply_text("🛡️ You are now protected for 1 day!")
