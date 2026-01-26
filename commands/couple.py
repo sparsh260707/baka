@@ -1,96 +1,166 @@
-import random
+# commands/couple.py
 import os
-from datetime import datetime
-from telegram import Update
-from telegram.ext import ContextTypes
-from database.db import get_group_members
-from PIL import Image, ImageDraw, ImageOps
-import requests
-from io import BytesIO
+import random
+from datetime import datetime, timedelta
+import pytz
+from pyrogram import filters
+from pyrogram.types import InlineKeyboardButton, InlineKeyboardMarkup
+from pyrogram.enums import ChatType
+from PIL import Image, ImageDraw
+from telegraph import upload_file
 
-# 24h Couple Storage
-couple_cache = {}
+from baka.utils import get_image, get_couple, save_couple
+from baka import app
 
-async def get_pfp(bot, user_id):
-    """User ki profile photo download karke PIL image return karta hai."""
-    try:
-        photos = await bot.get_user_profile_photos(user_id, limit=1)
-        if photos.total_count > 0:
-            file = await bot.get_file(photos.photos[0][-1].file_id)
-            response = requests.get(file.file_path)
-            img = Image.open(BytesIO(response.content)).convert("RGBA")
-            return img.resize((300, 300))
-    except:
-        pass
-    return Image.new('RGBA', (300, 300), color=(200, 200, 200)) # Default Gray
+# ------------------- Helper Functions -------------------
 
-async def couple(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat = update.effective_chat
-    if chat.type == "private":
-        return await update.message.reply_text("ᴛʜɪs ᴄᴏᴍᴍᴀɴᴅ ᴏɴʟʏ ᴡᴏʀᴋs ɪɴ ɢʀᴏᴜᴘs.")
+def get_today_date():
+    tz = pytz.timezone("Asia/Kolkata")
+    now = datetime.now(tz)
+    return now.strftime("%d/%m/%Y")
 
-    chat_id = chat.id
-    today = datetime.now().strftime("%Y-%m-%d")
+def get_tomorrow_date():
+    tz = pytz.timezone("Asia/Kolkata")
+    tomorrow = datetime.now(tz) + timedelta(days=1)
+    return tomorrow.strftime("%d/%m/%Y")
 
-    # 24 Hour Logic: Check if couple already exists for today
-    if chat_id in couple_cache and couple_cache[chat_id]['date'] == today:
-        data = couple_cache[chat_id]
-        return await update.message.reply_photo(
-            photo=open(data['path'], 'rb'),
-            caption=f"💌 **Today's Couple of the Day:**\n\n👤 {data['c1_name']} + {data['c2_name']} = ❤️"
-        )
+# ------------------- Couple Command -------------------
 
-    msg = await update.message.reply_text("🔍 Choosing today's lucky couple...")
+@app.on_message(filters.command(["couple", "couples"]))
+async def couple_of_the_day(_, message):
+    chat_id = message.chat.id
 
-    # MongoDB se group members (seen_groups logic) fetch karna
-    members = get_group_members(chat_id)
-    members = [m for m in members if m and 'id' in m]
+    if message.chat.type == ChatType.PRIVATE:
+        return await message.reply_text("❌ This command only works in groups.")
 
-    if len(members) < 2:
-        return await msg.edit_text("⚠️ Not enough active members found in database.")
+    today = get_today_date()
+    tomorrow = get_tomorrow_date()
 
-    # Random Selection
-    c1, c2 = random.sample(members, 2)
+    # ------------------- Paths -------------------
+    p1_path = "baka/assets/pfp.png"        # temp user 1 pic
+    p2_path = "baka/assets/pfp1.png"       # temp user 2 pic
+    test_image_path = f"baka/assets/test_{chat_id}.png"  # final couple image
+    cppic_path = "baka/assets/cppic.png"   # background image
+    default_user_path = "baka/assets/upic.png"  # fallback profile pic
 
     try:
-        # Create Couple Image
-        canvas = Image.new('RGB', (800, 400), color=(255, 192, 203)) # Pink Canvas
-        
-        pfp1 = await get_pfp(context.bot, c1['id'])
-        pfp2 = await get_pfp(context.bot, c2['id'])
+        selected = await get_couple(chat_id, today)
 
-        canvas.paste(pfp1, (50, 50))
-        canvas.paste(pfp2, (450, 50))
-        
-        # Draw Heart in middle
-        draw = ImageDraw.Draw(canvas)
-        # Simple Heart or Text
-        draw.text((385, 180), "❤️", fill=(255, 0, 0))
+        if not selected:
+            msg = await message.reply_text("❣️ Picking a couple...")
 
-        img_path = f"temp_couple_{chat_id}.png"
-        canvas.save(img_path)
+            # Get last 50 members
+            users_list = []
+            async for member in app.get_chat_members(chat_id, limit=50):
+                if not member.user.is_bot and not member.user.is_deleted:
+                    users_list.append(member.user.id)
 
-        caption = (
-            f"✨ **ᴄᴏᴜᴘʟᴇ ᴏғ ᴛʜᴇ ᴅᴀʏ** ✨\n\n"
-            f"💞 [{c1['name']}](tg://user?id={c1['id']}) + "
-            f"[{c2['name']}](tg://user?id={c2['id']}) = ❤️\n\n"
-            f"ᴛʜᴇsᴇ ᴛᴡᴏ ᴀʀᴇ ᴛᴏᴅᴀʏ's ᴍᴀᴛᴄʜ! ɴᴇxᴛ ᴄᴏᴜᴘʟᴇ ɪɴ 24 ʜᴏᴜʀs."
-        )
+            if len(users_list) < 2:
+                return await msg.edit("❌ Not enough members to pick a couple.")
 
-        await update.message.reply_photo(
-            photo=open(img_path, 'rb'),
-            caption=caption,
-            parse_mode="Markdown"
-        )
+            # Randomly pick two
+            c1_id = random.choice(users_list)
+            c2_id = random.choice(users_list)
+            while c1_id == c2_id:
+                c2_id = random.choice(users_list)
 
-        # Store in cache for 24h
-        couple_cache[chat_id] = {
-            'date': today, 
-            'path': img_path,
-            'c1_name': c1['name'],
-            'c2_name': c2['name']
-        }
-        await msg.delete()
+            # Get profile photos
+            photo1 = (await app.get_chat(c1_id)).photo
+            photo2 = (await app.get_chat(c2_id)).photo
+
+            N1 = (await app.get_users(c1_id)).mention
+            N2 = (await app.get_users(c2_id)).mention
+
+            # Download photos or use default
+            try:
+                p1 = await app.download_media(photo1.big_file_id, file_name=p1_path)
+            except:
+                p1 = default_user_path
+
+            try:
+                p2 = await app.download_media(photo2.big_file_id, file_name=p2_path)
+            except:
+                p2 = default_user_path
+
+            # Open images and resize
+            img1 = Image.open(p1).resize((437, 437))
+            img2 = Image.open(p2).resize((437, 437))
+
+            # Create circular masks
+            mask1 = Image.new("L", img1.size, 0)
+            draw = ImageDraw.Draw(mask1)
+            draw.ellipse((0, 0) + img1.size, fill=255)
+            img1.putalpha(mask1)
+
+            mask2 = Image.new("L", img2.size, 0)
+            draw = ImageDraw.Draw(mask2)
+            draw.ellipse((0, 0) + img2.size, fill=255)
+            img2.putalpha(mask2)
+
+            # Open background
+            img_bg = Image.open(cppic_path)
+            img_bg.paste(img1, (116, 160), img1)
+            img_bg.paste(img2, (789, 160), img2)
+            img_bg.save(test_image_path)
+
+            # Caption
+            TXT = f"""
+<b>Today's Couple of the Day:</b>
+
+{N1} + {N2} = 💚
+
+Next couples will be selected on {tomorrow}!!
+"""
+            await message.reply_photo(
+                test_image_path,
+                caption=TXT,
+                reply_markup=InlineKeyboardMarkup(
+                    [[InlineKeyboardButton("Add Me 🌋", url=f"https://t.me/{app.username}?startgroup=true")]]
+                )
+            )
+
+            await msg.delete()
+
+            # Upload to Telegraph
+            uploaded = upload_file(test_image_path)
+            img_url = "https://graph.org/" + uploaded[0]
+
+            # Save couple data
+            couple_data = {"c1_id": c1_id, "c2_id": c2_id}
+            await save_couple(chat_id, today, couple_data, img_url)
+
+        else:
+            # Couple already selected
+            msg = await message.reply_text("❣️")
+            img_url = await get_image(chat_id)
+            c1_id = int(selected["c1_id"])
+            c2_id = int(selected["c2_id"])
+            c1_name = (await app.get_users(c1_id)).first_name
+            c2_name = (await app.get_users(c2_id)).first_name
+
+            TXT = f"""
+<b>Today's Couple of the Day 🎉:</b>
+
+[{c1_name}](tg://openmessage?user_id={c1_id}) + [{c2_name}](tg://openmessage?user_id={c2_id}) = ❣️
+
+Next couples will be selected on {tomorrow}!!
+"""
+            await message.reply_photo(
+                img_url,
+                caption=TXT,
+                reply_markup=InlineKeyboardMarkup(
+                    [[InlineKeyboardButton("Add Me 🌋", url=f"https://t.me/{app.username}?startgroup=true")]]
+                )
+            )
+            await msg.delete()
 
     except Exception as e:
-        await msg.edit_text(f"❌ Error: {e}")
+        print(f"Couple Error: {e}")
+
+    finally:
+        # Cleanup temporary user photos and generated couple image
+        for f in [p1_path, p2_path, test_image_path]:
+            try:
+                os.remove(f)
+            except:
+                pass
