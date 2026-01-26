@@ -56,6 +56,40 @@ async def hug(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="HTML"
     )
 
+# ==================== LOVE ====================
+async def love(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    sender = update.effective_user
+    target = get_target(update)
+
+    if not target:
+        return await update.message.reply_text("Reply to someone !")
+
+    percent = random.randint(10, 100)
+
+    text = f"""
+💕 <b>Love meter report</b> 💕
+{mention(sender)} ❤️ {mention(target)}
+<b>Love compatibility:</b> {percent}% 🔥
+"""
+
+    await update.message.reply_text(text, parse_mode="HTML")
+
+# ==================== STUPID METER ====================
+async def stupid_meter(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    target = get_target(update)
+
+    if not target:
+        return await update.message.reply_text("Reply to someone !")
+
+    percent = random.randint(1, 100)
+
+    text = f"""
+Hmm 🤔 Stupid meter scanning...
+<b>Result for</b> {mention(target)}: {percent}% 😵‍💫 stupid detected
+"""
+
+    await update.message.reply_text(text, parse_mode="HTML")
+
 # ==================== /punch ====================
 async def punch(update: Update, context: ContextTypes.DEFAULT_TYPE):
     videos = [
