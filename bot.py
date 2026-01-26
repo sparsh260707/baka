@@ -22,7 +22,7 @@ from commands.economy import (
 from commands.game import register_game_commands
 from commands.admin import register_admin_commands
 from commands.chatbot import ask_ai, ai_message_handler
-from commands.couple import couple_of_the_day
+from commands.couple import couple
 from commands.shop import items, item, gift
 from commands.quote import q
 from commands.td import get_truth, get_dare
@@ -142,8 +142,11 @@ def main():
     app.add_handler(CommandHandler("id", id_cmd))
 
     # ===== Couple =====
-    app.add_handler(CommandHandler("couple", couple_of_the_day))
-    app.add_handler(CommandHandler("couples", couple_of_the_day))  # alias
+    # ===== Couple =====
+   app.add_handler(CommandHandler("couple", couple))
+   app.add_handler(CommandHandler("couples", couple))
+
+
 
     # ===== Game & Admin =====
     register_game_commands(app)
