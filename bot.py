@@ -25,6 +25,7 @@ from commands.chatbot import ask_ai, ai_message_handler
 from commands.couple import couple
 from commands.shop import items, item, gift
 from commands.quote import q
+from commands.welcome import welcome
 from commands.td import get_truth, get_dare
 
 # Fun
@@ -82,7 +83,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="Markdown"
     )
 
-# ================== BUTTON ==================
+# ================== BUTTON HANDLER ==================
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -129,7 +130,7 @@ def main():
     app.add_handler(CommandHandler("truth", get_truth))
     app.add_handler(CommandHandler("dare", get_dare))
 
-     # ===== Fun =====
+    # ===== Fun =====
     app.add_handler(CommandHandler("slap", slap))
     app.add_handler(CommandHandler("hug", hug))
     app.add_handler(CommandHandler("punch", punch))
@@ -145,7 +146,8 @@ def main():
     app.add_handler(CommandHandler("couple", couple))
     app.add_handler(CommandHandler("couples", couple))
 
-
+    # ===== Welcome New Members =====
+    app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome))
 
     # ===== Game & Admin =====
     register_game_commands(app)
