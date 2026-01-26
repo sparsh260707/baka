@@ -16,6 +16,7 @@ db = client["baka_bot_db"]
 users_col = db["users"]
 groups_claim_col = db["groups_claim"]
 settings_col = db["settings"]
+couples_col = db["couples"]
 
 # ===== Compatibility (old json system) =====
 def load():
@@ -123,10 +124,38 @@ def set_economy_status(chat_id, status: bool):
         upsert=True
     )
 
+# ================== COUPLE SYSTEM ==================
+
+def get_couple(chat_id, date):
+    return couples_col.find_one({
+        "chat_id": chat_id,
+        "date": date
+    })
+
+def save_couple(chat_id, date, couple_data):
+    couples_col.update_one(
+        {
+            "chat_id": chat_id,
+            "date": date
+        },
+        {
+            "$set": {
+                "chat_id": chat_id,
+                "date": date,
+                "c1_id": couple_data["c1_id"],
+                "c2_id": couple_data["c2_id"],
+                "image": couple_data["image"],
+                "created_at": datetime.utcnow()
+            }
+        },
+        upsert=True
+    )
+
 # ===== INDEXES (optional but good for performance) =====
 try:
     users_col.create_index("id", unique=True)
     settings_col.create_index("chat_id", unique=True)
     groups_claim_col.create_index("chat_id", unique=True)
+    couples_col.create_index([("chat_id", 1), ("date", 1)], unique=True)
 except:
     pass
