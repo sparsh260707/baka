@@ -75,27 +75,30 @@ async def couple(update: Update, context: ContextTypes.DEFAULT_TYPE):
     today = today_date()
     tomorrow = tomorrow_date()
 
-    # Check DB cache
+    # ------------------------
+    # Try fetching from DB
+    # ------------------------
     data = get_couple(chat_id, today)
     if data:
         try:
             u1 = await context.bot.get_chat(data["c1_id"])
             u2 = await context.bot.get_chat(data["c2_id"])
-        except:
-            return await message.reply_text("❌ Could not fetch couple info. Try again later.")
-
-        caption = f"""
+            caption = f"""
 💖 <b>Today's Couple of the Day</b>
 
 {u1.mention_html()} + {u2.mention_html()} = 💞
 
 ⏭ Next couple will be selected on <b>{tomorrow}</b>
 """
-        return await message.reply_photo(data["image"], caption=caption, parse_mode=ParseMode.HTML)
+            return await message.reply_photo(data["image"], caption=caption, parse_mode=ParseMode.HTML)
+        except:
+            data = None  # Agar old DB data fail ho, naya select hoga
 
     msg = await message.reply_text("💞 Selecting today's couple...")
 
+    # ------------------------
     # Fetch group members from DB
+    # ------------------------
     members = get_group_members(chat_id)
     members = [m for m in members if not m.get("is_bot")]
 
@@ -103,30 +106,42 @@ async def couple(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await msg.delete()
         return await message.reply_text("❌ Not enough members to select a couple!")
 
+    # ------------------------
     # Pick two random users
+    # ------------------------
     c1, c2 = random.sample(members, 2)
     c1_id = c1["id"]
     c2_id = c2["id"]
 
-    # Prepare temp paths
+    # ------------------------
+    # Temp paths for avatars and final image
+    # ------------------------
     p1_path = TEMP_DIR / f"p1_{chat_id}.png"
     p2_path = TEMP_DIR / f"p2_{chat_id}.png"
     out_path = TEMP_DIR / f"couple_{chat_id}.png"
 
-    # Download avatars and process
+    # ------------------------
+    # Download and circularize avatars
+    # ------------------------
     p1_img = await get_user_dp(c1_id, context.bot, p1_path)
     p2_img = await get_user_dp(c2_id, context.bot, p2_path)
 
-    # Create final image
+    # ------------------------
+    # Create final couple image
+    # ------------------------
     bg = Image.open(BG_PATH).convert("RGBA")
     bg.paste(p1_img, (116, 160), p1_img)
     bg.paste(p2_img, (789, 160), p2_img)
     bg.save(out_path)
 
-    # Save to DB
+    # ------------------------
+    # Save to MongoDB
+    # ------------------------
     save_couple(chat_id, today, {"c1_id": c1_id, "c2_id": c2_id}, str(out_path))
 
-    # Prepare caption
+    # ------------------------
+    # Caption & send
+    # ------------------------
     caption = f"""
 💖 <b>Today's Couple of the Day</b>
 
@@ -134,7 +149,6 @@ async def couple(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 ⏭ Next couple will be selected on <b>{tomorrow}</b>
 """
-
     await message.reply_photo(
         str(out_path),
         caption=caption,
