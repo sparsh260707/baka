@@ -7,23 +7,40 @@ from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import ContextTypes
 from telegram.constants import ChatType
 
-from database.db import get_couple, save_couple
-
-# ===== Paths =====
+# =========================
+# PATHS (FIXED FOR YOUR REPO STRUCTURE)
+# =========================
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-ASSETS_DIR = os.path.join(BASE_DIR, "assets")
+
+# assets are in baka/assets
+ASSETS_DIR = os.path.join(BASE_DIR, "baka", "assets")
 
 BG_PATH = os.path.join(ASSETS_DIR, "cppic.png")
 DEFAULT_USER_PATH = os.path.join(ASSETS_DIR, "upic.png")
 
-# ===== Time (India) =====
+# =========================
+# SIMPLE DB USING FILE (until you add Mongo couple system)
+# =========================
+_COUPLE_CACHE = {}
+
+def get_couple(chat_id, date):
+    return _COUPLE_CACHE.get(f"{chat_id}_{date}")
+
+def save_couple(chat_id, date, data):
+    _COUPLE_CACHE[f"{chat_id}_{date}"] = data
+
+# =========================
+# TIME
+# =========================
 def today_date():
     return datetime.utcnow().strftime("%d/%m/%Y")
 
 def tomorrow_date():
     return (datetime.utcnow() + timedelta(days=1)).strftime("%d/%m/%Y")
 
-# ===== Main Command =====
+# =========================
+# MAIN COMMAND
+# =========================
 async def couple(update: Update, context: ContextTypes.DEFAULT_TYPE):
     message = update.effective_message
     chat = update.effective_chat
@@ -65,7 +82,9 @@ async def couple(update: Update, context: ContextTypes.DEFAULT_TYPE):
             user1 = await context.bot.get_chat(c1_id)
             user2 = await context.bot.get_chat(c2_id)
 
-            # Download photos or use default
+            # =========================
+            # DOWNLOAD PHOTOS
+            # =========================
             try:
                 p1_file = await user1.get_profile_photos(limit=1)
                 if p1_file.total_count > 0:
@@ -88,7 +107,9 @@ async def couple(update: Update, context: ContextTypes.DEFAULT_TYPE):
             except:
                 p2_path = DEFAULT_USER_PATH
 
-            # ===== Image processing =====
+            # =========================
+            # IMAGE PROCESSING
+            # =========================
             bg = Image.open(BG_PATH).convert("RGBA")
             img1 = Image.open(p1_path).convert("RGBA").resize((437, 437))
             img2 = Image.open(p2_path).convert("RGBA").resize((437, 437))
@@ -96,7 +117,7 @@ async def couple(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # Circle mask
             mask = Image.new("L", img1.size, 0)
             draw = ImageDraw.Draw(mask)
-            draw.ellipse((0, 0) + img1.size, fill=255)
+            draw.ellipse((0, 0, img1.size[0], img1.size[1]), fill=255)
 
             img1.putalpha(mask)
             img2.putalpha(mask)
@@ -106,7 +127,7 @@ async def couple(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             bg.save(out_path)
 
-            # Save to DB
+            # Save to "DB"
             save_couple(chat_id, today, {
                 "c1_id": c1_id,
                 "c2_id": c2_id,
@@ -162,7 +183,7 @@ async def couple(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Cleanup temp files
         for f in [p1_path, p2_path]:
             try:
-                if os.path.exists(f) and "upic.png" not in f:
+                if os.path.exists(f) and f not in [DEFAULT_USER_PATH]:
                     os.remove(f)
             except:
                 pass
