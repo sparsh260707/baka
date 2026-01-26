@@ -106,6 +106,6 @@ async def font_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
 
 
-# ================= REGISTER =================
-font_handler = CommandHandler("font", font_cmd)
-font_callback_handler = CallbackQueryHandler(font_callback, pattern="^font")
+def register_font_commands(app):
+    app.add_handler(font_handler)
+    app.add_handler(font_callback_handler)
