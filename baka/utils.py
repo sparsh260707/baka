@@ -1,6 +1,6 @@
 # baka/utils.py
 from datetime import datetime
-from baka.database import db  # your database/db.py
+from database import db  # import db.py from database folder
 
 # =========================
 # USER HELPER
