@@ -1,69 +1,79 @@
 # commands/fonts.py
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ContextTypes, CallbackQueryHandler, CommandHandler
+from telegram.ext import ContextTypes, CommandHandler, CallbackQueryHandler
 
-# ========== Simple Font Maps ==========
-def typewriter(text): return "".join(chr(ord(c) + 0x1D670 - 0x41) if "A" <= c <= "Z" else chr(ord(c) + 0x1D68A - 0x61) if "a" <= c <= "z" else c for c in text)
-def bold(text): return "".join(chr(ord(c) + 0x1D400 - 0x41) if "A" <= c <= "Z" else chr(ord(c) + 0x1D41A - 0x61) if "a" <= c <= "z" else c for c in text)
-def monospace(text): return "".join(chr(ord(c) + 0x1D670 - 0x41) if "A" <= c <= "Z" else chr(ord(c) + 0x1D68A - 0x61) if "a" <= c <= "z" else c for c in text)
-def circle(text): return "".join(chr(ord(c) + 0x24B6 - 0x41) if "A" <= c <= "Z" else chr(ord(c) + 0x24D0 - 0x61) if "a" <= c <= "z" else c for c in text)
+# ===== FONT STYLES =====
+class Fonts:
+    @staticmethod
+    def typewriter(text): return "".join([c + " " for c in text])
+    @staticmethod
+    def outline(text): return "".join([f"⟦{c}⟧" for c in text])
+    @staticmethod
+    def serif(text): return text
+    @staticmethod
+    def bold(text): return "".join([chr(ord(c)+0x1D3BF) if c.isalpha() else c for c in text])
+    @staticmethod
+    def small(text): return text.lower()
+    @staticmethod
+    def bubbles(text): return "".join([f"ⓑ{c}" for c in text])
 
-FONTS = {
-    "typewriter": typewriter,
-    "bold": bold,
-    "mono": monospace,
-    "circle": circle,
-}
-
-# ========== Keyboard ==========
+# ===== KEYBOARD =====
 def font_keyboard():
-    return InlineKeyboardMarkup([
+    buttons = [
         [
-            InlineKeyboardButton("𝚃𝚢𝚙𝚎𝚠𝚛𝚒𝚝𝚎𝚛", callback_data="font+typewriter"),
-            InlineKeyboardButton("𝗕𝗼𝗹𝗱", callback_data="font+bold"),
+            InlineKeyboardButton("Typewriter", callback_data="font+typewriter"),
+            InlineKeyboardButton("Outline", callback_data="font+outline"),
         ],
         [
-            InlineKeyboardButton("𝙼𝚘𝚗𝚘", callback_data="font+mono"),
-            InlineKeyboardButton("Ⓒⓘⓡⓒⓛⓔ", callback_data="font+circle"),
+            InlineKeyboardButton("Bold", callback_data="font+bold"),
+            InlineKeyboardButton("Small", callback_data="font+small"),
+        ],
+        [
+            InlineKeyboardButton("Bubbles", callback_data="font+bubbles"),
         ]
-    ])
+    ]
+    return InlineKeyboardMarkup(buttons)
 
-# ========== /font command ==========
-async def font_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
+# ===== /font =====
+async def font(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not context.args:
-        return await update.message.reply_text("❗ Use: /font Your text")
+        return await update.message.reply_text("❗ Usage: /font Your Text")
 
     text = " ".join(context.args)
-   await update.message.reply_text(
-    text,
-    reply_markup=font_keyboard()
-)
 
-# ========== Callback ==========
-async def font_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        f"🎨 Choose a font for:\n\n{text}",
+        reply_markup=font_keyboard()
+    )
+
+# ===== BUTTON HANDLER =====
+async def font_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
-    data = query.data
-    if not data.startswith("font+"):
-        return
+    data = query.data.split("+")[1]
+    original_text = query.message.text.split("\n\n", 1)[1]
 
-    style = data.split("+")[1]
-
-    func = FONTS.get(style)
-    if not func:
-        return
-
-    original = query.message.text
-    new_text = func(original)
+    if data == "typewriter":
+        new = Fonts.typewriter(original_text)
+    elif data == "outline":
+        new = Fonts.outline(original_text)
+    elif data == "bold":
+        new = Fonts.bold(original_text)
+    elif data == "small":
+        new = Fonts.small(original_text)
+    elif data == "bubbles":
+        new = Fonts.bubbles(original_text)
+    else:
+        new = original_text
 
     try:
-        await query.message.edit_text(new_text, reply_markup=query.message.reply_markup)
+        await query.message.edit_text(new, reply_markup=query.message.reply_markup)
     except:
         pass
 
-# ========== Register ==========
+# ===== REGISTER =====
 def register_font_commands(app):
-    app.add_handler(CommandHandler("font", font_cmd))
-    app.add_handler(CommandHandler("fonts", font_cmd))
-    app.add_handler(CallbackQueryHandler(font_callback, pattern="^font\\+"))
+    app.add_handler(CommandHandler("font", font))
+    app.add_handler(CommandHandler("fonts", font))
+    app.add_handler(CallbackQueryHandler(font_button, pattern="^font\\+"))
