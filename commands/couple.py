@@ -82,10 +82,9 @@ async def couple(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # GET ALL NON-BOT CHAT ADMINS
             # ------------------------
             chat_obj = await context.bot.get_chat(chat_id)
-            members = []
-            async for admin in chat_obj.get_administrators():
-                if not admin.user.is_bot:
-                    members.append(admin.user.id)
+            admins = await chat_obj.get_administrators()  # await the coroutine first
+
+            members = [admin.user.id for admin in admins if not admin.user.is_bot]
 
             if len(members) < 2:
                 return await msg.edit_text("❌ Not enough members to select a couple!")
