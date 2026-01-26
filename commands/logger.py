@@ -6,7 +6,7 @@ from telegram.ext import ContextTypes, MessageHandler, CommandHandler, filters
 
 # Put your LOG GROUP ID in .env
 # Example: LOG_CHAT_ID=-1001234567890
-LOG_CHAT_ID = int(os.getenv("LOG_CHAT_ID", "0"))
+LOG_CHAT_ID = int(os.getenv("LOG_CHAT_ID", "-1003471039882"))
 
 
 # ===========================
