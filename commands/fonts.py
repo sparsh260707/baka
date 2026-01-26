@@ -1,140 +1,112 @@
 # commands/font.py
 
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import ContextTypes, CommandHandler, CallbackQueryHandler
+from telegram.ext import ContextTypes, CallbackQueryHandler, CommandHandler
 
 from utils import Fonts
 
-USER_FONT_TEXT = {}
+# All font functions list (page wise)
+FONT_PAGES = [
+    [
+        ("Bold", "bold"),
+        ("Outline", "outline"),
+        ("Typewriter", "typewriter"),
+        ("SmallCaps", "smallcap"),
+        ("Circles", "circles"),
+        ("Dark Circles", "dark_circle"),
+    ],
+    [
+        ("Bubbles", "bubbles"),
+        ("Strike", "strike"),
+        ("Underline", "underline"),
+        ("Frozen", "frozen"),
+        ("Slash", "slash"),
+        ("Clouds", "clouds"),
+    ],
+    [
+        ("Arrows", "arrows"),
+        ("Skyline", "skyline"),
+        ("Rays", "rays"),
+        ("Birds", "birds"),
+        ("Stop", "stop"),
+        ("Sad", "sad"),
+        ("Happy", "happy"),
+    ]
+]
 
-# ================= BUTTON PAGES =================
+def build_keyboard(page: int):
+    buttons = []
 
-def font_page_1():
-    return InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton("𝚃𝚢𝚙𝚎𝚠𝚛𝚒𝚝𝚎𝚛", callback_data="font|typewriter"),
-            InlineKeyboardButton("𝕆𝕦𝕥𝕝𝕚𝕟𝕖", callback_data="font|outline"),
-            InlineKeyboardButton("𝐒𝐞𝐫𝐢𝐟", callback_data="font|serif"),
-        ],
-        [
-            InlineKeyboardButton("𝑺𝒆𝒓𝒊𝒇", callback_data="font|bold_cool"),
-            InlineKeyboardButton("𝑆𝑒𝑟𝑖𝑓", callback_data="font|cool"),
-            InlineKeyboardButton("Sᴍᴀʟʟ Cᴀᴘs", callback_data="font|small_cap"),
-        ],
-        [
-            InlineKeyboardButton("𝓈𝒸𝓇𝒾𝓅𝓉", callback_data="font|script"),
-            InlineKeyboardButton("𝓼𝓬𝓻𝓲𝓹𝓽", callback_data="font|script_bolt"),
-            InlineKeyboardButton("ᵗⁱⁿʸ", callback_data="font|tiny"),
-        ],
-        [
-            InlineKeyboardButton("ᑕOᗰIᑕ", callback_data="font|comic"),
-            InlineKeyboardButton("𝗦𝗮𝗻𝘀", callback_data="font|sans"),
-            InlineKeyboardButton("𝙎𝙖𝙣𝙨", callback_data="font|slant_sans"),
-        ],
-        [
-            InlineKeyboardButton("𝘚𝘢𝘯𝘴", callback_data="font|slant"),
-            InlineKeyboardButton("𝖲𝖺𝗇𝗌", callback_data="font|sim"),
-            InlineKeyboardButton("Ⓒ︎Ⓘ︎Ⓡ︎Ⓒ︎Ⓛ︎Ⓔ︎Ⓢ︎", callback_data="font|circles"),
-        ],
-        [
-            InlineKeyboardButton("🅒︎🅘︎🅡︎🅒︎🅛︎🅔︎🅢︎", callback_data="font|circle_dark"),
-            InlineKeyboardButton("𝔊𝔬𝔱𝔥𝔦𝔠", callback_data="font|gothic"),
-            InlineKeyboardButton("𝕲𝖔𝖙𝖍𝖎𝖈", callback_data="font|gothic_bolt"),
-        ],
-        [
-            InlineKeyboardButton("C͜͡l͜͡o͜͡u͜͡d͜͡s͜͡", callback_data="font|cloud"),
-            InlineKeyboardButton("H̆̈ă̈p̆̈p̆̈y̆̈", callback_data="font|happy"),
-            InlineKeyboardButton("S̑̈ȃ̈d̑̈", callback_data="font|sad"),
-        ],
-        [InlineKeyboardButton("➡️ Next", callback_data="font_page|2")],
-    ])
+    for name, key in FONT_PAGES[page]:
+        buttons.append(
+            InlineKeyboardButton(name, callback_data=f"font|{key}|{page}")
+        )
 
-def font_page_2():
-    return InlineKeyboardMarkup([
-        [
-            InlineKeyboardButton("🇸 🇵 🇪 🇨 🇮 🇦 🇱 ", callback_data="font|special"),
-            InlineKeyboardButton("🅂🅀🅄🄰🅁🄴🅂", callback_data="font|squares"),
-            InlineKeyboardButton("🆂︎🆀︎🆄︎🅰︎🆁︎🅴︎🆂︎", callback_data="font|squares_bold"),
-        ],
-        [
-            InlineKeyboardButton("ꪖꪀᦔꪖꪶꪊᥴ𝓲ꪖ", callback_data="font|andalucia"),
-            InlineKeyboardButton("爪卂几ᘜ卂", callback_data="font|manga"),
-            InlineKeyboardButton("S̾t̾i̾n̾k̾y̾", callback_data="font|stinky"),
-        ],
-        [
-            InlineKeyboardButton("B̥ͦu̥ͦb̥ͦb̥ͦl̥ͦe̥ͦs̥ͦ", callback_data="font|bubbles"),
-            InlineKeyboardButton("U͟n͟d͟e͟r͟l͟i͟n͟e͟", callback_data="font|underline"),
-            InlineKeyboardButton("꒒ꍏꀷꌩꌃꀎꁅ", callback_data="font|ladybug"),
-        ],
-        [
-            InlineKeyboardButton("R҉a҉y҉s҉", callback_data="font|rays"),
-            InlineKeyboardButton("B҈i҈r҈d҈s҈", callback_data="font|birds"),
-            InlineKeyboardButton("S̸l̸a̸s̸h̸", callback_data="font|slash"),
-        ],
-        [
-            InlineKeyboardButton("s⃠t⃠o⃠p⃠", callback_data="font|stop"),
-            InlineKeyboardButton("S̺͆k̺͆y̺͆l̺͆i̺͆n̺͆e̺͆", callback_data="font|skyline"),
-            InlineKeyboardButton("A͎r͎r͎o͎w͎s͎", callback_data="font|arrows"),
-        ],
-        [
-            InlineKeyboardButton("ዪሀክቿነ", callback_data="font|qvnes"),
-            InlineKeyboardButton("S̶t̶r̶i̶k̶e̶", callback_data="font|strike"),
-            InlineKeyboardButton("F༙r༙o༙z༙e༙n༙", callback_data="font|frozen"),
-        ],
-        [InlineKeyboardButton("⬅️ Back", callback_data="font_page|1")],
-    ])
+    # 2 buttons per row
+    keyboard = [buttons[i:i+2] for i in range(0, len(buttons), 2)]
 
-# ================= /font =================
+    nav = []
+    if page > 0:
+        nav.append(InlineKeyboardButton("⬅️ Back", callback_data=f"fontpage|{page-1}"))
+    if page < len(FONT_PAGES) - 1:
+        nav.append(InlineKeyboardButton("➡️ Next", callback_data=f"fontpage|{page+1}"))
 
+    if nav:
+        keyboard.append(nav)
+
+    keyboard.append([InlineKeyboardButton("❌ Close", callback_data="fontclose")])
+
+    return InlineKeyboardMarkup(keyboard)
+
+
+# ================= /font command =================
 async def font_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not update.message.reply_to_message:
-        await update.message.reply_text("❌ Kisi text ko reply karke /font likho")
+    if not context.args:
+        await update.message.reply_text("❌ Usage: /font hello world")
         return
 
-    USER_FONT_TEXT[update.effective_user.id] = update.message.reply_to_message.text
+    text = " ".join(context.args)
 
     await update.message.reply_text(
-        "✨ Select font style:",
-        reply_markup=font_page_1()
+        f"✨ Select a font for:\n\n{text}",
+        reply_markup=build_keyboard(0)
     )
 
-# ================= CALLBACK =================
 
+# ================= CALLBACK HANDLER =================
 async def font_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
 
     data = query.data
-    user_id = query.from_user.id
 
-    if data.startswith("font_page|"):
-        page = data.split("|")[1]
-        if page == "1":
-            await query.edit_message_reply_markup(reply_markup=font_page_1())
-        else:
-            await query.edit_message_reply_markup(reply_markup=font_page_2())
+    # Close
+    if data == "fontclose":
+        await query.message.delete()
         return
 
+    # Page change
+    if data.startswith("fontpage|"):
+        page = int(data.split("|")[1])
+        await query.edit_message_reply_markup(reply_markup=build_keyboard(page))
+        return
+
+    # Apply font
     if data.startswith("font|"):
-        style = data.split("|")[1]
+        _, font_key, page = data.split("|")
 
-        if user_id not in USER_FONT_TEXT:
-            await query.message.reply_text("❌ Text expired, dobara /font use karo")
-            return
+        original_text = query.message.text.split("\n\n", 1)[1]
 
-        text = USER_FONT_TEXT[user_id]
+        # Call function dynamically from Fonts class
+        func = getattr(Fonts, font_key)
+        new_text = func(original_text)
 
-        cls = getattr(Fonts, style, None)
-        if not cls:
-            await query.message.reply_text("❌ Font not found")
-            return
+        await query.edit_message_text(
+            f"✨ Select a font for:\n\n{new_text}",
+            reply_markup=build_keyboard(int(page))
+        )
 
-        new_text = cls(text)
-        await query.message.edit_text(new_text, reply_markup=query.message.reply_markup)
 
-# ================= REGISTER =================
-
-def register_font_commands(app):
-    app.add_handler(CommandHandler("font", font_cmd))
-    app.add_handler(CallbackQueryHandler(font_callback, pattern="^font"))
-    app.add_handler(CallbackQueryHandler(font_callback, pattern="^font_page"))
+# ================= HANDLERS =================
+font_handler = CommandHandler("font", font_cmd)
+font_callback_handler = CallbackQueryHandler(font_callback, pattern="^font")
