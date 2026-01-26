@@ -21,8 +21,6 @@ from commands.economy import (
 # Other modules
 from commands.game import register_game_commands
 from commands.admin import register_admin_commands
-from commands.kang import kang_handler
-from commands.sticker import sticker_id_handler
 from commands.chatbot import ask_ai, ai_message_handler
 from commands.couple import couple
 from commands.shop import items, item, gift
@@ -153,8 +151,6 @@ def main():
 
     # ===== Game & Admin =====
     register_game_commands(app)
-    app.add_handler(kang_handler)
-    app.add_handler(sticker_id_handler)
     register_admin_commands(app)
 
     # ===== AI Chat =====
