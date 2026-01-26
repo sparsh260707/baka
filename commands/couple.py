@@ -48,7 +48,6 @@ async def get_user_dp(user, save_path):
             await f.download_to_drive(save_path)
             return save_path
         else:
-            # User has no profile pic → use default UPIC
             return DEFAULT_USER_PATH
     except:
         return DEFAULT_USER_PATH
@@ -80,12 +79,13 @@ async def couple(update: Update, context: ContextTypes.DEFAULT_TYPE):
             msg = await message.reply_text("💞 Selecting today's couple...")
 
             # ------------------------
-            # GET ALL NON-BOT MEMBERS
+            # GET ALL NON-BOT CHAT ADMINS
             # ------------------------
+            chat_obj = await context.bot.get_chat(chat_id)
             members = []
-            async for member in context.bot.get_chat_members(chat_id, limit=200):  # fetch first 200 members
-                if not member.user.is_bot:
-                    members.append(member.user.id)
+            async for admin in chat_obj.get_administrators():
+                if not admin.user.is_bot:
+                    members.append(admin.user.id)
 
             if len(members) < 2:
                 return await msg.edit_text("❌ Not enough members to select a couple!")
@@ -112,7 +112,6 @@ async def couple(update: Update, context: ContextTypes.DEFAULT_TYPE):
             img1 = Image.open(p1_path).convert("RGBA").resize((437, 437))
             img2 = Image.open(p2_path).convert("RGBA").resize((437, 437))
 
-            # Circle mask
             mask = Image.new("L", img1.size, 0)
             draw = ImageDraw.Draw(mask)
             draw.ellipse((0, 0, img1.size[0], img1.size[1]), fill=255)
