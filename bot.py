@@ -27,7 +27,7 @@ from commands.shop import items, item, gift
 
 # Fun
 from commands.fun import (
-    slap, hug, punch, kiss, bite, crush, brain, id_cmd
+    slap, hug, punch, kiss, bite, crush, brain, id_cmd, love, stupid_meter
 )
 
 # ================== START IMAGE ==================
@@ -128,6 +128,8 @@ def main():
     app.add_handler(CommandHandler("punch", punch))
     app.add_handler(CommandHandler("kiss", kiss))
     app.add_handler(CommandHandler("bite", bite))
+    app.add_handler(CommandHandler("love", love))
+    app.add_handler(CommandHandler("stupid_meter", stupid_meter))
     app.add_handler(CommandHandler("crush", crush))
     app.add_handler(CommandHandler("brain", brain))
     app.add_handler(CommandHandler("id", id_cmd))
