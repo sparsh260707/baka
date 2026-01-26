@@ -24,6 +24,7 @@ from commands.admin import register_admin_commands
 from commands.chatbot import ask_ai, ai_message_handler
 from commands.couple import couple
 from commands.shop import items, item, gift
+from commands.quote import q
 
 # Fun
 from commands.fun import (
@@ -105,6 +106,7 @@ def main():
 
     # ===== Economy =====
     app.add_handler(CommandHandler("bal", bal))
+    app.add_handler(CommandHandler("q", q))
     app.add_handler(CommandHandler("rob", rob))
     app.add_handler(CommandHandler("kill", kill))
     app.add_handler(CommandHandler("revive", revive))
