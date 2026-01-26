@@ -30,6 +30,7 @@ def today_date():
 def tomorrow_date():
     return (datetime.utcnow() + timedelta(days=1)).strftime("%d/%m/%Y")
 
+
 # =========================
 # GET USER DP
 # =========================
@@ -59,6 +60,7 @@ async def get_user_dp(user_id, bot, save_path):
         os.remove(save_path)
     return output
 
+
 # =========================
 # MAIN COMMAND
 # =========================
@@ -76,8 +78,12 @@ async def couple(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Check DB cache
     data = get_couple(chat_id, today)
     if data:
-        u1 = await context.bot.get_chat(data["c1_id"])
-        u2 = await context.bot.get_chat(data["c2_id"])
+        try:
+            u1 = await context.bot.get_chat(data["c1_id"])
+            u2 = await context.bot.get_chat(data["c2_id"])
+        except:
+            return await message.reply_text("❌ Could not fetch couple info. Try again later.")
+
         caption = f"""
 💖 <b>Today's Couple of the Day</b>
 
@@ -91,7 +97,7 @@ async def couple(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     # Fetch group members from DB
     members = get_group_members(chat_id)
-    members = [m for m in members if not m.get("is_bot")]  # filter bots
+    members = [m for m in members if not m.get("is_bot")]
 
     if len(members) < 2:
         await msg.delete()
@@ -117,7 +123,7 @@ async def couple(update: Update, context: ContextTypes.DEFAULT_TYPE):
     bg.paste(p2_img, (789, 160), p2_img)
     bg.save(out_path)
 
-    # Save to DB (note: pass img_path as last argument!)
+    # Save to DB
     save_couple(chat_id, today, {"c1_id": c1_id, "c2_id": c2_id}, str(out_path))
 
     # Prepare caption
