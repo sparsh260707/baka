@@ -13,5 +13,4 @@ async def sticker_id(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="HTML"
     )
 
-
 sticker_id_handler = CommandHandler(["stickerid", "stid"], sticker_id)
