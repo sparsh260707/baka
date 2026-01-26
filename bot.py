@@ -25,6 +25,7 @@ from commands.chatbot import ask_ai, ai_message_handler
 from commands.couple import couple
 from commands.shop import items, item, gift
 from commands.quote import q
+from commands.fonts import register_font_commands
 
 # Fun
 from commands.fun import (
@@ -142,6 +143,7 @@ def main():
     # ===== Game & Admin =====
     register_game_commands(app)
     register_admin_commands(app)
+    register_font_commands(app)
 
     # ===== AI Chat =====
     app.add_handler(CommandHandler("ask", ask_ai))
