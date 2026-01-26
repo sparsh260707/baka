@@ -25,6 +25,7 @@ from commands.chatbot import ask_ai, ai_message_handler
 from commands.couple import couple
 from commands.shop import items, item, gift
 from commands.quote import q
+from commands.td import get_truth, get_dare
 
 # Fun
 from commands.fun import (
@@ -124,7 +125,11 @@ def main():
     app.add_handler(CommandHandler("item", item))
     app.add_handler(CommandHandler("gift", gift))
 
-    # ===== Fun =====
+    # ===== Truth & Dare =====
+    app.add_handler(CommandHandler("truth", get_truth))
+    app.add_handler(CommandHandler("dare", get_dare))
+
+     # ===== Fun =====
     app.add_handler(CommandHandler("slap", slap))
     app.add_handler(CommandHandler("hug", hug))
     app.add_handler(CommandHandler("punch", punch))
