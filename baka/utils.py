@@ -1,16 +1,60 @@
-# utils.py
-couples_db = {}  # Temporary dict; replace with actual DB if needed
-images_db = {}
+# baka/utils.py
+from datetime import datetime
+from baka.database import db  # your database/db.py
 
-async def get_couple(chat_id, date):
-    # Returns couple info if already selected for the day
-    return couples_db.get((chat_id, date))
+# =========================
+# USER HELPER
+# =========================
+def get_mention(user):
+    """
+    Returns an HTML mention of a user.
+    Works with DB user dict:
+    {
+        "id": user_id,
+        "name": "User",
+        ...
+    }
+    """
+    user_id = user.get("id")
+    name = user.get("name", "User")
+    return f'<a href="tg://user?id={user_id}">{name}</a>'
 
-async def save_couple(chat_id, date, couple_data, img_url):
-    couples_db[(chat_id, date)] = couple_data
-    images_db[(chat_id, date)] = img_url
 
-async def get_image(chat_id):
-    # Returns saved image URL for the chat
-    today = datetime.now(pytz.timezone("Asia/Kolkata")).strftime("%d/%m/%Y")
-    return images_db.get((chat_id, today))
+# =========================
+# COUPLE HELPER (MongoDB)
+# =========================
+def get_couple(chat_id, date):
+    """
+    Returns today's couple for a chat from MongoDB.
+    """
+    couple = db.get_couple(chat_id, date)
+    if couple:
+        return {
+            "c1_id": couple.get("c1_id"),
+            "c2_id": couple.get("c2_id"),
+            "image": couple.get("image")
+        }
+    return None
+
+
+def save_couple(chat_id, date, couple_data, img_path):
+    """
+    Saves today's couple to MongoDB.
+    couple_data = {"c1_id": ..., "c2_id": ...}
+    img_path = local path of the generated image
+    """
+    db.save_couple(chat_id, date, {
+        "c1_id": couple_data["c1_id"],
+        "c2_id": couple_data["c2_id"],
+        "image": img_path
+    })
+
+
+def get_image(chat_id, date):
+    """
+    Returns saved couple image path for a chat.
+    """
+    couple = db.get_couple(chat_id, date)
+    if couple:
+        return couple.get("image")
+    return None
