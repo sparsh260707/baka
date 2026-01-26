@@ -8,7 +8,6 @@ load_dotenv()
 
 # ===== MongoDB Connection =====
 MONGO_URL = os.getenv("MONGO_URL") or "mongodb://localhost:27017"
-
 client = pymongo.MongoClient(MONGO_URL)
 db = client["baka_bot_db"]
 
@@ -17,13 +16,6 @@ users_col = db["users"]
 groups_claim_col = db["groups_claim"]
 settings_col = db["settings"]
 couples_col = db["couples"]
-
-# ===== Compatibility (old json system) =====
-def load():
-    return {}
-
-def save(data):
-    pass
 
 # ===== USER SYSTEM =====
 def get_user(user, chat_id=None):
@@ -63,28 +55,27 @@ def get_user(user, chat_id=None):
         users_col.insert_one(user_data)
 
     # ===== Safety keys =====
-    if "groups" not in user_data: user_data["groups"] = []
-    if "name" not in user_data: user_data["name"] = getattr(user, "first_name", f"User_{uid}")
-    if "bal" not in user_data: user_data["bal"] = 0
-    if "dead_until" not in user_data: user_data["dead_until"] = 0
-    if "protect_until" not in user_data: user_data["protect_until"] = 0
-    if "kills" not in user_data: user_data["kills"] = 0
-    if "rob" not in user_data: user_data["rob"] = 0
+    user_data.setdefault("groups", [])
+    user_data.setdefault("name", getattr(user, "first_name", f"User_{uid}"))
+    user_data.setdefault("bal", 0)
+    user_data.setdefault("dead_until", 0)
+    user_data.setdefault("protect_until", 0)
+    user_data.setdefault("kills", 0)
+    user_data.setdefault("rob", 0)
 
     # ===== Group tracking =====
-    if chat_id is not None:
-        if chat_id not in user_data["groups"]:
-            users_col.update_one(
-                {"id": uid},
-                {"$addToSet": {"groups": chat_id}}
-            )
-            user_data["groups"].append(chat_id)
+    if chat_id is not None and chat_id not in user_data["groups"]:
+        users_col.update_one(
+            {"id": uid},
+            {"$addToSet": {"groups": chat_id}}
+        )
+        user_data["groups"].append(chat_id)
 
     return user_data
 
 def get_group_members(chat_id):
     """
-    Returns all users who are marked as members of this group.
+    Returns all users who are members of this group.
     """
     return list(users_col.find({"groups": chat_id}))
 
@@ -107,15 +98,13 @@ def mark_group_claimed(chat_id, user_id):
         upsert=True
     )
 
-# ===== ECONOMY ON/OFF SYSTEM =====
+# ===== ECONOMY SYSTEM =====
 def is_economy_on(chat_id):
     """
-    Default = ON
+    Default = True
     """
     res = settings_col.find_one({"chat_id": chat_id})
-    if not res:
-        return True
-    return res.get("economy_status", True)
+    return res.get("economy_status", True) if res else True
 
 def set_economy_status(chat_id, status: bool):
     settings_col.update_one(
@@ -124,20 +113,19 @@ def set_economy_status(chat_id, status: bool):
         upsert=True
     )
 
-# ================== COUPLE SYSTEM ==================
-
+# ===== COUPLE SYSTEM =====
 def get_couple(chat_id, date):
-    return couples_col.find_one({
-        "chat_id": chat_id,
-        "date": date
-    })
+    """
+    Fetch couple of the day from MongoDB.
+    """
+    return couples_col.find_one({"chat_id": chat_id, "date": date})
 
 def save_couple(chat_id, date, couple_data):
+    """
+    Save today's couple to MongoDB.
+    """
     couples_col.update_one(
-        {
-            "chat_id": chat_id,
-            "date": date
-        },
+        {"chat_id": chat_id, "date": date},
         {
             "$set": {
                 "chat_id": chat_id,
@@ -151,11 +139,11 @@ def save_couple(chat_id, date, couple_data):
         upsert=True
     )
 
-# ===== INDEXES (optional but good for performance) =====
+# ===== INDEXES =====
 try:
     users_col.create_index("id", unique=True)
     settings_col.create_index("chat_id", unique=True)
     groups_claim_col.create_index("chat_id", unique=True)
     couples_col.create_index([("chat_id", 1), ("date", 1)], unique=True)
-except:
+except Exception:
     pass
