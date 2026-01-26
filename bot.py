@@ -142,7 +142,8 @@ def main():
     app.add_handler(CommandHandler("id", id_cmd))
 
     # ===== Couple =====
-    app.add_handler(CommandHandler("couple", couple))
+    app.add_handler(CommandHandler("couple", couple_of_the_day))
+    app.add_handler(CommandHandler("couples", couple_of_the_day))  # alias
 
     # ===== Game & Admin =====
     register_game_commands(app)
