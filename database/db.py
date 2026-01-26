@@ -17,12 +17,17 @@ groups_claim_col = db["groups_claim"]
 settings_col = db["settings"]
 couples_col = db["couples"]
 
-# ===== USER SYSTEM =====
+# =====================================================
+# ================= USER SYSTEM ========================
+# =====================================================
+
 def get_user(user, chat_id=None):
     """
     Always returns a valid user dict.
     Auto-creates user if not exists.
+    Also tracks groups the user used the bot in.
     """
+
     if not user or not hasattr(user, "id"):
         return {
             "id": 0,
@@ -36,7 +41,8 @@ def get_user(user, chat_id=None):
             "rob": 0,
         }
 
-    uid = user.id
+    uid = int(user.id)
+
     user_data = users_col.find_one({"id": uid})
 
     if not user_data:
@@ -64,74 +70,110 @@ def get_user(user, chat_id=None):
     user_data.setdefault("rob", 0)
 
     # ===== Group tracking =====
-    if chat_id is not None and chat_id not in user_data["groups"]:
-        users_col.update_one(
-            {"id": uid},
-            {"$addToSet": {"groups": chat_id}}
-        )
-        user_data["groups"].append(chat_id)
+    if chat_id is not None:
+        chat_id = int(chat_id)
+        if chat_id not in user_data["groups"]:
+            users_col.update_one(
+                {"id": uid},
+                {"$addToSet": {"groups": chat_id}}
+            )
+            user_data["groups"].append(chat_id)
 
     return user_data
+
+
+def get_all_groups():
+    """
+    Returns ALL unique group IDs where bot was ever used.
+    """
+    groups = set()
+    for u in users_col.find({}, {"groups": 1}):
+        for g in u.get("groups", []):
+            groups.add(int(g))
+    return list(groups)
+
+
+def get_all_users():
+    """
+    Returns all user IDs.
+    """
+    return [int(u["id"]) for u in users_col.find({}, {"id": 1})]
+
 
 def get_group_members(chat_id):
     """
     Returns all users who are members of this group.
     """
-    return list(users_col.find({"groups": chat_id}))
+    return list(users_col.find({"groups": int(chat_id)}))
 
-# ===== CLAIM SYSTEM =====
+
+# =====================================================
+# ================= CLAIM SYSTEM =======================
+# =====================================================
+
 def is_group_claimed(chat_id):
-    data = groups_claim_col.find_one({"chat_id": chat_id})
+    data = groups_claim_col.find_one({"chat_id": int(chat_id)})
     return bool(data and data.get("claimed", False))
+
 
 def mark_group_claimed(chat_id, user_id):
     groups_claim_col.update_one(
-        {"chat_id": chat_id},
+        {"chat_id": int(chat_id)},
         {
             "$set": {
-                "chat_id": chat_id,
+                "chat_id": int(chat_id),
                 "claimed": True,
-                "claimed_by": user_id,
+                "claimed_by": int(user_id),
                 "at": datetime.utcnow(),
             }
         },
         upsert=True
     )
 
-# ===== ECONOMY SYSTEM =====
+
+# =====================================================
+# ================= ECONOMY SYSTEM =====================
+# =====================================================
+
 def is_economy_on(chat_id):
     """
     Default = True
     """
-    res = settings_col.find_one({"chat_id": chat_id})
+    res = settings_col.find_one({"chat_id": int(chat_id)})
     return res.get("economy_status", True) if res else True
+
 
 def set_economy_status(chat_id, status: bool):
     settings_col.update_one(
-        {"chat_id": chat_id},
+        {"chat_id": int(chat_id)},
         {"$set": {"economy_status": bool(status)}},
         upsert=True
     )
 
-# ===== COUPLE SYSTEM =====
+
+# =====================================================
+# ================= COUPLE SYSTEM ======================
+# =====================================================
+
 def get_couple(chat_id, date):
     """
     Fetch couple of the day from MongoDB.
     """
-    return couples_col.find_one({"chat_id": chat_id, "date": date})
+    return couples_col.find_one({"chat_id": int(chat_id), "date": date})
+
 
 def save_couple(chat_id, date, couple_data):
     """
     Save today's couple to MongoDB.
     """
     couples_col.update_one(
-        {"chat_id": chat_id, "date": date},
+        {"chat_id": int(chat_id), "date": date},
         {
             "$set": {
-                "chat_id": chat_id,
+                "chat_id": int(chat_id),
                 "date": date,
-                "c1_id": couple_data["c1_id"],
-                "c2_id": couple_data["c2_id"],
+                "c1_id": int(couple_data["c1_id"]),
+                "c2_id": int(couple_data["c2_id"]),
                 "image": couple_data["image"],
                 "created_at": datetime.utcnow()
             }
@@ -139,7 +181,11 @@ def save_couple(chat_id, date, couple_data):
         upsert=True
     )
 
-# ===== INDEXES =====
+
+# =====================================================
+# ================= INDEXES ============================
+# =====================================================
+
 try:
     users_col.create_index("id", unique=True)
     settings_col.create_index("chat_id", unique=True)
