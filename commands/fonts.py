@@ -34,11 +34,10 @@ async def font_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return await update.message.reply_text("❗ Use: /font Your text")
 
     text = " ".join(context.args)
-    await update.message.reply_text(
-        text,
-        reply_markup=font_keyboard(),
-        quote=True
-    )
+   await update.message.reply_text(
+    text,
+    reply_markup=font_keyboard()
+)
 
 # ========== Callback ==========
 async def font_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
