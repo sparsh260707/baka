@@ -8,18 +8,16 @@ from telegram.ext import ContextTypes
 from telegram.constants import ChatType
 
 # =========================
-# PATHS (FIXED FOR YOUR REPO STRUCTURE)
+# PATHS
 # =========================
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-
-# assets are in baka/assets
 ASSETS_DIR = os.path.join(BASE_DIR, "baka", "assets")
 
 BG_PATH = os.path.join(ASSETS_DIR, "cppic.png")
 DEFAULT_USER_PATH = os.path.join(ASSETS_DIR, "upic.png")
 
 # =========================
-# SIMPLE DB USING FILE (until you add Mongo couple system)
+# SIMPLE DB CACHE
 # =========================
 _COUPLE_CACHE = {}
 
@@ -30,13 +28,30 @@ def save_couple(chat_id, date, data):
     _COUPLE_CACHE[f"{chat_id}_{date}"] = data
 
 # =========================
-# TIME
+# TIME HELPERS
 # =========================
 def today_date():
     return datetime.utcnow().strftime("%d/%m/%Y")
 
 def tomorrow_date():
     return (datetime.utcnow() + timedelta(days=1)).strftime("%d/%m/%Y")
+
+# =========================
+# HELPER: get user's profile picture or fallback
+# =========================
+async def get_user_dp(user, save_path):
+    try:
+        photos = await user.get_profile_photos(limit=1)
+        if photos.total_count > 0:
+            file = photos.photos[0][-1]
+            f = await file.get_file()
+            await f.download_to_drive(save_path)
+            return save_path
+        else:
+            # User has no profile pic → use default UPIC
+            return DEFAULT_USER_PATH
+    except:
+        return DEFAULT_USER_PATH
 
 # =========================
 # MAIN COMMAND
@@ -58,22 +73,24 @@ async def couple(update: Update, context: ContextTypes.DEFAULT_TYPE):
     out_path = os.path.join(ASSETS_DIR, f"couple_{chat_id}.png")
 
     try:
-        # Check DB
+        # Check DB cache
         data = get_couple(chat_id, today)
 
         if not data:
             msg = await message.reply_text("💞 Selecting today's couple...")
 
+            # ------------------------
+            # GET ALL NON-BOT MEMBERS
+            # ------------------------
             members = []
-
-            admins = await context.bot.get_chat_administrators(chat_id)
-            for m in admins:
-                if not m.user.is_bot:
-                    members.append(m.user.id)
+            async for member in context.bot.get_chat_members(chat_id, limit=200):  # fetch first 200 members
+                if not member.user.is_bot:
+                    members.append(member.user.id)
 
             if len(members) < 2:
-                return await msg.edit_text("❌ Not enough members!")
+                return await msg.edit_text("❌ Not enough members to select a couple!")
 
+            # Pick two random members
             c1_id = random.choice(members)
             c2_id = random.choice(members)
             while c1_id == c2_id:
@@ -82,34 +99,15 @@ async def couple(update: Update, context: ContextTypes.DEFAULT_TYPE):
             user1 = await context.bot.get_chat(c1_id)
             user2 = await context.bot.get_chat(c2_id)
 
-            # =========================
-            # DOWNLOAD PHOTOS
-            # =========================
-            try:
-                p1_file = await user1.get_profile_photos(limit=1)
-                if p1_file.total_count > 0:
-                    file = p1_file.photos[0][-1]
-                    f = await file.get_file()
-                    await f.download_to_drive(p1_path)
-                else:
-                    raise Exception()
-            except:
-                p1_path = DEFAULT_USER_PATH
+            # ------------------------
+            # GET PROFILE PHOTOS
+            # ------------------------
+            p1_path = await get_user_dp(user1, p1_path)
+            p2_path = await get_user_dp(user2, p2_path)
 
-            try:
-                p2_file = await user2.get_profile_photos(limit=1)
-                if p2_file.total_count > 0:
-                    file = p2_file.photos[0][-1]
-                    f = await file.get_file()
-                    await f.download_to_drive(p2_path)
-                else:
-                    raise Exception()
-            except:
-                p2_path = DEFAULT_USER_PATH
-
-            # =========================
+            # ------------------------
             # IMAGE PROCESSING
-            # =========================
+            # ------------------------
             bg = Image.open(BG_PATH).convert("RGBA")
             img1 = Image.open(p1_path).convert("RGBA").resize((437, 437))
             img2 = Image.open(p2_path).convert("RGBA").resize((437, 437))
@@ -127,7 +125,7 @@ async def couple(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
             bg.save(out_path)
 
-            # Save to "DB"
+            # Save to cache
             save_couple(chat_id, today, {
                 "c1_id": c1_id,
                 "c2_id": c2_id,
@@ -183,7 +181,7 @@ async def couple(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Cleanup temp files
         for f in [p1_path, p2_path]:
             try:
-                if os.path.exists(f) and f not in [DEFAULT_USER_PATH]:
+                if os.path.exists(f) and f not in [DEFAULT_USER_PATH, BG_PATH]:
                     os.remove(f)
             except:
                 pass
