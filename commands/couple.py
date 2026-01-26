@@ -77,7 +77,7 @@ async def couple(update: Update, context: ContextTypes.DEFAULT_TYPE):
     tomorrow = tomorrow_date()
 
     # Check DB cache
-    data = get_couple(chat_id, today)
+    data = await get_couple(chat_id, today)
     if data:
         u1 = await context.bot.get_chat(data["c1_id"])
         u2 = await context.bot.get_chat(data["c2_id"])
@@ -121,7 +121,7 @@ async def couple(update: Update, context: ContextTypes.DEFAULT_TYPE):
     bg.save(out_path)
 
     # Save to DB
-    save_couple(chat_id, today, {"c1_id": c1_id, "c2_id": c2_id, "image": str(out_path)})
+    await save_couple(chat_id, today, {"c1_id": c1_id, "c2_id": c2_id}, str(out_path))
 
     # Prepare caption
     caption = f"""
