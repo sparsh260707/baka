@@ -22,7 +22,7 @@ from commands.economy import (
 from commands.game import register_game_commands
 from commands.admin import register_admin_commands
 from commands.chatbot import ask_ai, ai_message_handler
-from commands.couple import couple
+from commands.couple import couple_of_the_day
 from commands.shop import items, item, gift
 from commands.quote import q
 from commands.td import get_truth, get_dare
