@@ -5,6 +5,8 @@ from telegram.ext import ContextTypes, CallbackQueryHandler, CommandHandler
 
 from utils import Fonts
 
+# ================= FONT PAGES =================
+
 FONT_PAGES = [
     [
         ("Bold", "bold"),
@@ -20,7 +22,7 @@ FONT_PAGES = [
         ("Underline", "underline"),
         ("Frozen", "frozen"),
         ("Slash", "slash"),
-        ("Clouds", "clouds"),
+        ("Cloud", "cloud"),
     ],
     [
         ("Arrows", "arrows"),
@@ -32,6 +34,8 @@ FONT_PAGES = [
         ("Happy", "happy"),
     ]
 ]
+
+# ================= KEYBOARD BUILDER =================
 
 def build_keyboard(page: int):
     buttons = []
@@ -45,14 +49,15 @@ def build_keyboard(page: int):
         nav.append(InlineKeyboardButton("⬅️ Back", callback_data=f"fontpage|{page-1}"))
     if page < len(FONT_PAGES) - 1:
         nav.append(InlineKeyboardButton("➡️ Next", callback_data=f"fontpage|{page+1}"))
+
     if nav:
         keyboard.append(nav)
 
     keyboard.append([InlineKeyboardButton("❌ Close", callback_data="fontclose")])
     return InlineKeyboardMarkup(keyboard)
 
+# ================= /font COMMAND =================
 
-# ================= /font =================
 async def font_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = update.message
 
@@ -67,7 +72,7 @@ async def font_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         text = " ".join(context.args)
 
     if not text:
-        await msg.reply_text("❌ Kisi text ko reply karke /font likho ya\n/font hello world")
+        await msg.reply_text("❌ Kisi text ko reply karke /font likho\nYa: /font hello world")
         return
 
     await msg.reply_text(
@@ -75,8 +80,8 @@ async def font_cmd(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=build_keyboard(0)
     )
 
+# ================= CALLBACK HANDLER =================
 
-# ================= CALLBACK =================
 async def font_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
@@ -105,7 +110,10 @@ async def font_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
             reply_markup=build_keyboard(int(page))
         )
 
+# ================= REGISTER FUNCTION =================
 
 def register_font_commands(app):
-    app.add_handler(font_handler)
-    app.add_handler(font_callback_handler)
+    app.add_handler(CommandHandler("font", font_cmd))
+    app.add_handler(CommandHandler("fonts", font_cmd))
+    app.add_handler(CallbackQueryHandler(font_callback, pattern="^font"))
+    app.add_handler(CallbackQueryHandler(font_callback, pattern="^fontpage"))
