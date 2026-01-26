@@ -30,7 +30,6 @@ def today_date():
 def tomorrow_date():
     return (datetime.utcnow() + timedelta(days=1)).strftime("%d/%m/%Y")
 
-
 # =========================
 # GET USER DP
 # =========================
@@ -60,7 +59,6 @@ async def get_user_dp(user_id, bot, save_path):
         os.remove(save_path)
     return output
 
-
 # =========================
 # MAIN COMMAND
 # =========================
@@ -75,7 +73,7 @@ async def couple(update: Update, context: ContextTypes.DEFAULT_TYPE):
     today = today_date()
     tomorrow = tomorrow_date()
 
-    # Check DB cache (sync, no await)
+    # Check DB cache
     data = get_couple(chat_id, today)
     if data:
         u1 = await context.bot.get_chat(data["c1_id"])
@@ -119,8 +117,8 @@ async def couple(update: Update, context: ContextTypes.DEFAULT_TYPE):
     bg.paste(p2_img, (789, 160), p2_img)
     bg.save(out_path)
 
-    # Save to DB (sync, no await)
-save_couple(chat_id, today, {"c1_id": c1_id, "c2_id": c2_id}, str(out_path))
+    # Save to DB (note: pass img_path as last argument!)
+    save_couple(chat_id, today, {"c1_id": c1_id, "c2_id": c2_id}, str(out_path))
 
     # Prepare caption
     caption = f"""
