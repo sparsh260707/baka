@@ -19,7 +19,6 @@ ASSETS_DIR = Path("baka/assets")
 BG_PATH = ASSETS_DIR / "cppic.png"
 DEFAULT_USER_PATH = ASSETS_DIR / "upic.png"
 TEMP_DIR = Path("temp_couples")
-
 TEMP_DIR.mkdir(parents=True, exist_ok=True)
 
 # =========================
@@ -76,8 +75,8 @@ async def couple(update: Update, context: ContextTypes.DEFAULT_TYPE):
     today = today_date()
     tomorrow = tomorrow_date()
 
-    # Check DB cache
-    data = await get_couple(chat_id, today)
+    # Check DB cache (sync, no await)
+    data = get_couple(chat_id, today)
     if data:
         u1 = await context.bot.get_chat(data["c1_id"])
         u2 = await context.bot.get_chat(data["c2_id"])
@@ -120,8 +119,8 @@ async def couple(update: Update, context: ContextTypes.DEFAULT_TYPE):
     bg.paste(p2_img, (789, 160), p2_img)
     bg.save(out_path)
 
-    # Save to DB
-    await save_couple(chat_id, today, {"c1_id": c1_id, "c2_id": c2_id}, str(out_path))
+    # Save to DB (sync, no await)
+    save_couple(chat_id, today, {"c1_id": c1_id, "c2_id": c2_id, "image": str(out_path)})
 
     # Prepare caption
     caption = f"""
