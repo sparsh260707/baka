@@ -120,7 +120,7 @@ async def couple(update: Update, context: ContextTypes.DEFAULT_TYPE):
     bg.save(out_path)
 
     # Save to DB (sync, no await)
-    save_couple(chat_id, today, {"c1_id": c1_id, "c2_id": c2_id, "image": str(out_path)})
+save_couple(chat_id, today, {"c1_id": c1_id, "c2_id": c2_id}, str(out_path))
 
     # Prepare caption
     caption = f"""
