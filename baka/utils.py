@@ -1,7 +1,6 @@
 # baka/utils.py
 from datetime import datetime
 from pathlib import Path
-from PIL import Image
 import os
 
 from database import db  # import db.py from database folder
@@ -59,28 +58,3 @@ def get_image(chat_id, date):
     if couple:
         return couple.get("image")
     return None
-
-# =========================
-# IMAGE/STICKER HELPERS
-# =========================
-async def resize_image(file_path: str) -> str:
-    """
-    Resize an image to 512x512 for sticker/kang usage.
-    Returns new path.
-    """
-    from contextlib import suppress
-    import asyncio
-
-    def _sync_resize():
-        im = Image.open(file_path)
-        if im.mode != "RGBA":
-            im = im.convert("RGBA")
-        im.thumbnail((512, 512))
-        out_path = file_path if file_path.lower().endswith(".png") else f"{file_path}.png"
-        im.save(out_path, "PNG", optimize=True)
-        if out_path != file_path:
-            with suppress(Exception):
-                os.remove(file_path)
-        return out_path
-
-    return await asyncio.to_thread(_sync_resize)
