@@ -1,8 +1,6 @@
-# bot.py
-
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
-    Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
+    Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes, ChatMemberHandler
 )
 
 # ================== LOAD CONFIG ==================
@@ -12,17 +10,13 @@ from config import BOT_TOKEN
 from database.db import get_user
 
 # ================== IMPORT COMMANDS ==================
-
-# Economy
 from commands.economy import (
     bal, rob, kill, revive, protect, give, myrank, toprich,
     leaders, economy, open_economy, close_economy
 )
-
-# Other modules
 from commands.game import register_game_commands
 from commands.admin import register_admin_commands
-from commands.logger import register_logger
+from commands.logger import register_logger # Iske andar ChatMemberHandlers honge
 from commands.broadcast import register_broadcast
 from commands.chatbot import ask_ai, ai_message_handler
 from commands.couple import couple
@@ -30,8 +24,6 @@ from commands.shop import items, item, gift
 from commands.quote import q
 from commands.welcome import welcome
 from commands.td import get_truth, get_dare
-
-# Fun
 from commands.fun import (
     slap, hug, punch, kiss, bite, crush, brain, id_cmd, love, stupid_meter
 )
@@ -52,6 +44,13 @@ async def auto_register_handler(update: Update, context: ContextTypes.DEFAULT_TY
 # ================== /START ==================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
+    if update.effective_chat.type != "private":
+        return await update.message.reply_text(
+            "📩 Check your private chat to start!",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("💬 Open Private", url=f"https://t.me/{context.bot.username}")]
+            ])
+        )
 
     keyboard = [
         [
@@ -66,18 +65,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             InlineKeyboardButton("➕ Add me to your group", url=f"https://t.me/{context.bot.username}?startgroup=true")
         ]
     ]
-
     reply_markup = InlineKeyboardMarkup(keyboard)
-
     text = f"✨ 𝗛𝗲𝘆, *{user.first_name}* ~\n💌 You're Talking To 𝓑𝓪𝓴𝓪, A _Sassy Cutie Girl_ 💕"
-
-    if update.effective_chat.type != "private":
-        return await update.message.reply_text(
-            "📩 Check your private chat to start!",
-            reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton("💬 Open Private", url=f"https://t.me/{context.bot.username}")]
-            ])
-        )
 
     await update.message.reply_photo(
         photo=START_IMAGE_URL,
@@ -86,30 +75,29 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         parse_mode="Markdown"
     )
 
-# ================== BUTTON HANDLER ==================
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     if query.data == "talk_baka":
         await query.message.reply_text("Main thik hu, tum kaise ho? 😊")
 
-# ================== ERROR HANDLER ==================
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
     print(f"❌ Critical Bot Error: {context.error}")
 
 # ================== MAIN ==================
 def main():
-    app = Application.builder().token(BOT_TOKEN).build()
+    # 1. FIX: allowed_updates add kiya gaya hai (Chat Member updates ke liye)
+    app = Application.builder().token(BOT_TOKEN).allowed_updates(Update.ALL_TYPES).build()
 
-    # ===== Auto register (highest priority) =====
+    # Priority -1: Registration
     app.add_handler(MessageHandler(filters.ALL, auto_register_handler), group=-1)
 
-    # ===== Start & buttons =====
+    # Basic Handlers
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_error_handler(error_handler)
 
-    # ===== Economy =====
+    # Economy Handlers
     app.add_handler(CommandHandler("bal", bal))
     app.add_handler(CommandHandler("q", q))
     app.add_handler(CommandHandler("rob", rob))
@@ -124,16 +112,12 @@ def main():
     app.add_handler(CommandHandler("open", open_economy))
     app.add_handler(CommandHandler("close", close_economy))
 
-    # ===== Shop =====
+    # Fun & Social
     app.add_handler(CommandHandler("items", items))
     app.add_handler(CommandHandler("item", item))
     app.add_handler(CommandHandler("gift", gift))
-
-    # ===== Truth & Dare =====
     app.add_handler(CommandHandler("truth", get_truth))
     app.add_handler(CommandHandler("dare", get_dare))
-
-    # ===== Fun =====
     app.add_handler(CommandHandler("slap", slap))
     app.add_handler(CommandHandler("hug", hug))
     app.add_handler(CommandHandler("punch", punch))
@@ -144,25 +128,24 @@ def main():
     app.add_handler(CommandHandler("crush", crush))
     app.add_handler(CommandHandler("brain", brain))
     app.add_handler(CommandHandler("id", id_cmd))
-
-    # ===== Couple =====
     app.add_handler(CommandHandler("couple", couple))
     app.add_handler(CommandHandler("couples", couple))
 
-    # ===== Welcome =====
-    app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome))
-
-    # ===== Game, Logger, Broadcast, Admin =====
+    # Module Registration
     register_game_commands(app)
-    register_logger(app)
+    register_logger(app)      # Isme ChatMemberHandler register honge
     register_broadcast(app)
     register_admin_commands(app)
 
-    # ===== AI Chat =====
+    # Welcome (Sirf service messages ke liye)
+    app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome))
+
+    # AI Chat (Commands ke baad hona chahiye taaki command miss na ho)
     app.add_handler(CommandHandler("ask", ask_ai))
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), ai_message_handler))
 
     print("🤖 Baka Bot is online and watching over you!")
+    # drop_pending_updates=True taaki purane bache hue logs na aayein
     app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
