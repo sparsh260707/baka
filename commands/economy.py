@@ -167,6 +167,44 @@ async def rob(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"💰 {fancy_name(robber)} robbed ${amount} from {victim_user.first_name}"
     )
 
+# ===== /give =====
+async def give(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await can_use_economy(update, context):
+        return
+
+    if not update.message.reply_to_message or not context.args:
+        return await update.message.reply_text("Reply: /give <amount>")
+
+    if update.message.reply_to_message.sender_chat:
+        return await update.message.reply_text("❌ Cannot give to channels.")
+
+    giver_user = update.effective_user
+    receiver_user = update.message.reply_to_message.from_user
+
+    if is_invalid_target(receiver_user):
+        return await update.message.reply_text("❌ Invalid target.")
+
+    giver = get_user_data(giver_user.id, giver_user)
+    receiver = get_user_data(receiver_user.id, receiver_user)
+
+    try:
+        amount = int(context.args[0])
+        if amount <= 0:
+            raise
+    except:
+        return await update.message.reply_text("❌ Invalid amount.")
+
+    if giver.get("bal", 200) < amount:
+        return await update.message.reply_text("❌ Insufficient funds.")
+
+    giver["bal"] -= amount
+    receiver["bal"] = receiver.get("bal", 200) + amount
+
+    update_user_data(giver_user.id, giver)
+    update_user_data(receiver_user.id, receiver)
+
+    await update.message.reply_text(f"💸 Transfer successful: ${amount}")
+
 # ===== /kill =====
 async def kill(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await can_use_economy(update, context):
