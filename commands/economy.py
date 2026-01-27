@@ -1,5 +1,5 @@
 # commands/economy.py
-# Final Economy System for BAKA Bot - MongoDB Version
+# Final Secure Economy System for BAKA Bot (MongoDB)
 
 import time
 import random
@@ -10,6 +10,13 @@ from database.db import get_user, users_col, is_economy_on, set_economy_status
 # ===== TIME UTILS =====
 def now():
     return int(time.time())
+
+# ===== SECURITY =====
+def is_anonymous_sender(update: Update):
+    return update.effective_user is None or update.message.sender_chat is not None
+
+def is_invalid_target(user):
+    return user is None or user.is_bot
 
 # ===== USER HELPERS =====
 def fancy_name(user):
@@ -53,6 +60,12 @@ def get_all_users():
 
 # ===== ECONOMY STATUS GATE =====
 async def can_use_economy(update: Update, context: ContextTypes.DEFAULT_TYPE):
+
+    # ❌ Block anonymous / channel
+    if is_anonymous_sender(update):
+        await update.message.reply_text("❌ Anonymous admin / channel cannot use economy.")
+        return False
+
     chat_id = update.effective_chat.id
     is_open = is_economy_on(chat_id)
 
@@ -68,14 +81,14 @@ async def close_economy(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return await update.message.reply_text("❌ Only admins can close the economy.")
 
     set_economy_status(update.effective_chat.id, False)
-    await update.message.reply_text("❌ Economy has been CLOSED for everyone.")
+    await update.message.reply_text("❌ Economy CLOSED.")
 
 async def open_economy(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await is_user_admin(update, context):
         return await update.message.reply_text("❌ Only admins can open the economy.")
 
     set_economy_status(update.effective_chat.id, True)
-    await update.message.reply_text("✅ Economy has been ENABLED for everyone.")
+    await update.message.reply_text("✅ Economy ENABLED.")
 
 # ===== /bal =====
 async def bal(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -84,11 +97,12 @@ async def bal(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     user_obj = update.effective_user
     if update.message.reply_to_message:
+        if update.message.reply_to_message.sender_chat:
+            return await update.message.reply_text("❌ Cannot check channel / anonymous.")
         user_obj = update.message.reply_to_message.from_user
 
     user_data = get_user(user_obj)
 
-    # Rank calculate
     all_users = get_all_users()
     all_users.sort(key=lambda x: x.get("bal", 0), reverse=True)
     rank = next((i for i, u in enumerate(all_users, 1) if u.get("id") == user_obj.id), "N/A")
@@ -107,33 +121,26 @@ async def bal(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(text)
 
-# ===== /toprich =====
-async def toprich(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not await can_use_economy(update, context): return
-
-    all_users = get_all_users()
-    all_users.sort(key=lambda x: x.get("bal", 0), reverse=True)
-
-    msg = "🌍 Top 10 Richest Players:\n\n"
-    for i, u in enumerate(all_users[:10], 1):
-        msg += f"{i}. {u.get('name','User')} — ${u.get('bal',0)}\n"
-
-    await update.message.reply_text(msg)
-
 # ===== /rob =====
 async def rob(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await can_use_economy(update, context): return
     if not update.message.reply_to_message:
         return await update.message.reply_text("Reply to someone to rob.")
 
+    if update.message.reply_to_message.sender_chat:
+        return await update.message.reply_text("❌ You cannot rob anonymous admin or channels.")
+
     robber_user = update.effective_user
     victim_user = update.message.reply_to_message.from_user
+
+    if is_invalid_target(victim_user):
+        return await update.message.reply_text("❌ Invalid target.")
 
     robber = get_user_data(robber_user.id, robber_user)
     victim = get_user_data(victim_user.id, victim_user)
 
     if is_dead(robber): return await update.message.reply_text("❌ You are dead.")
-    if is_dead(victim): return await update.message.reply_text("❌ Target is already dead.")
+    if is_dead(victim): return await update.message.reply_text("❌ Target already dead.")
     if is_protected(victim): return await update.message.reply_text("🛡️ Target is protected.")
     if victim.get("bal", 0) <= 0: return await update.message.reply_text("❌ Target has no money.")
 
@@ -152,9 +159,7 @@ async def rob(update: Update, context: ContextTypes.DEFAULT_TYPE):
     update_user_data(robber_user.id, robber)
     update_user_data(victim_user.id, victim)
 
-    await update.message.reply_text(
-        f"💰 {fancy_name(robber)} robbed ${amount} from {victim_user.first_name}"
-    )
+    await update.message.reply_text(f"💰 {fancy_name(robber)} robbed ${amount} from {victim_user.first_name}")
 
 # ===== /kill =====
 async def kill(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -162,14 +167,20 @@ async def kill(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message.reply_to_message:
         return await update.message.reply_text("Reply to someone to kill.")
 
+    if update.message.reply_to_message.sender_chat:
+        return await update.message.reply_text("❌ You cannot kill anonymous admin or channels.")
+
     killer_user = update.effective_user
     victim_user = update.message.reply_to_message.from_user
+
+    if is_invalid_target(victim_user):
+        return await update.message.reply_text("❌ Invalid target.")
 
     killer = get_user_data(killer_user.id, killer_user)
     victim = get_user_data(victim_user.id, victim_user)
 
     if is_dead(killer): return await update.message.reply_text("❌ You are dead.")
-    if is_dead(victim): return await update.message.reply_text("❌ Target is already dead.")
+    if is_dead(victim): return await update.message.reply_text("❌ Target already dead.")
     if is_protected(victim): return await update.message.reply_text("🛡️ Target is protected.")
 
     victim["dead_until"] = now() + 5 * 60 * 60
@@ -181,22 +192,61 @@ async def kill(update: Update, context: ContextTypes.DEFAULT_TYPE):
     update_user_data(killer_user.id, killer)
     update_user_data(victim_user.id, victim)
 
-    await update.message.reply_text(
-        f"☠️ {fancy_name(killer)} killed {victim_user.first_name}\n💰 Reward: ${reward}"
-    )
+    await update.message.reply_text(f"☠️ {fancy_name(killer)} killed {victim_user.first_name}\n💰 Reward: ${reward}")
+
+# ===== /give =====
+async def give(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await can_use_economy(update, context): return
+    if not update.message.reply_to_message or not context.args:
+        return await update.message.reply_text("Reply: /give <amount>")
+
+    if update.message.reply_to_message.sender_chat:
+        return await update.message.reply_text("❌ Cannot give to channels.")
+
+    giver_user = update.effective_user
+    receiver_user = update.message.reply_to_message.from_user
+
+    if is_invalid_target(receiver_user):
+        return await update.message.reply_text("❌ Invalid target.")
+
+    giver = get_user_data(giver_user.id, giver_user)
+    receiver = get_user_data(receiver_user.id, receiver_user)
+
+    try:
+        amount = int(context.args[0])
+        if amount <= 0: raise
+    except:
+        return await update.message.reply_text("❌ Invalid amount.")
+
+    if giver.get("bal", 200) < amount:
+        return await update.message.reply_text("❌ Insufficient funds.")
+
+    giver["bal"] -= amount
+    receiver["bal"] = receiver.get("bal", 200) + amount
+
+    update_user_data(giver_user.id, giver)
+    update_user_data(receiver_user.id, receiver)
+
+    await update.message.reply_text(f"💸 Transfer successful: ${amount}")
 
 # ===== /revive =====
 async def revive(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await can_use_economy(update, context): return
 
+    if update.message.reply_to_message and update.message.reply_to_message.sender_chat:
+        return await update.message.reply_text("❌ Cannot revive channels.")
+
     reviver_user = update.effective_user
     target_user = update.message.reply_to_message.from_user if update.message.reply_to_message else reviver_user
+
+    if is_invalid_target(target_user):
+        return await update.message.reply_text("❌ Invalid target.")
 
     reviver = get_user_data(reviver_user.id, reviver_user)
     target = get_user_data(target_user.id, target_user)
 
     if not is_dead(target):
-        return await update.message.reply_text("✅ Target is already alive.")
+        return await update.message.reply_text("✅ Target already alive.")
 
     if reviver.get("bal", 200) < 500:
         return await update.message.reply_text("❌ You need $500 to revive.")
@@ -230,36 +280,6 @@ async def protect(update: Update, context: ContextTypes.DEFAULT_TYPE):
     update_user_data(update.effective_user.id, user)
 
     await update.message.reply_text(f"🛡️ You are protected for {days}")
-
-# ===== /give =====
-async def give(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not await can_use_economy(update, context): return
-
-    if not update.message.reply_to_message or not context.args:
-        return await update.message.reply_text("Reply to someone: /give <amount>")
-
-    giver_user = update.effective_user
-    receiver_user = update.message.reply_to_message.from_user
-
-    giver = get_user_data(giver_user.id, giver_user)
-    receiver = get_user_data(receiver_user.id, receiver_user)
-
-    try:
-        amount = int(context.args[0])
-        if amount <= 0: raise
-    except:
-        return await update.message.reply_text("❌ Invalid amount.")
-
-    if giver.get("bal", 200) < amount:
-        return await update.message.reply_text("❌ Insufficient funds.")
-
-    giver["bal"] -= amount
-    receiver["bal"] = receiver.get("bal", 200) + amount
-
-    update_user_data(giver_user.id, giver)
-    update_user_data(receiver_user.id, receiver)
-
-    await update.message.reply_text(f"💸 Transfer successful: ${amount}")
 
 # ===== /myrank =====
 async def myrank(update: Update, context: ContextTypes.DEFAULT_TYPE):
