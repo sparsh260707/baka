@@ -8,7 +8,7 @@ from database.db import users_col
 
 
 # ===========================
-# When new members join OR bot added
+# When bot is added to group
 # ===========================
 async def new_members_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.message.new_chat_members:
@@ -21,6 +21,8 @@ async def new_members_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 
         # 🤖 Bot added
         if member.id == context.bot.id:
+
+            print("BOT ADDED TO:", chat.id)  # debug
 
             # Save group in DB
             users_col.update_many({}, {"$addToSet": {"groups": chat.id}})
@@ -55,6 +57,8 @@ async def left_member_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
 
     # 🤖 Bot removed
     if member.id == context.bot.id:
+
+        print("BOT REMOVED FROM:", chat.id)  # debug
 
         # Remove group from DB
         users_col.update_many({}, {"$pull": {"groups": chat.id}})
