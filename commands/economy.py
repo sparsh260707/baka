@@ -13,7 +13,7 @@ def now():
 
 # ===== SECURITY =====
 def is_anonymous_sender(update: Update):
-    return update.effective_user is None or update.message.sender_chat is not None
+    return update.effective_user is None or (update.message and update.message.sender_chat is not None)
 
 def is_invalid_target(user):
     return user is None or user.is_bot
@@ -67,10 +67,8 @@ async def can_use_economy(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return False
 
     chat_id = update.effective_chat.id
-    is_open = is_economy_on(chat_id)
-
-    if not is_open:
-        await update.message.reply_text("⚠️ For reopen use: /open")
+    if not is_economy_on(chat_id):
+        await update.message.reply_text("⚠️ Economy is closed. Use /open")
         return False
 
     return True
@@ -79,14 +77,12 @@ async def can_use_economy(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def close_economy(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await is_user_admin(update, context):
         return await update.message.reply_text("❌ Only admins can close the economy.")
-
     set_economy_status(update.effective_chat.id, False)
     await update.message.reply_text("❌ Economy CLOSED.")
 
 async def open_economy(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await is_user_admin(update, context):
         return await update.message.reply_text("❌ Only admins can open the economy.")
-
     set_economy_status(update.effective_chat.id, True)
     await update.message.reply_text("✅ Economy ENABLED.")
 
@@ -107,16 +103,12 @@ async def bal(update: Update, context: ContextTypes.DEFAULT_TYPE):
     all_users.sort(key=lambda x: x.get("bal", 0), reverse=True)
     rank = next((i for i, u in enumerate(all_users, 1) if u.get("id") == user_obj.id), "N/A")
 
-    bal_amt = user_data.get("bal", 0)
-    kills = user_data.get("kills", 0)
-    status = "dead 💀" if is_dead(user_data) else "alive ❤️"
-
     text = (
         f"👤 Name: {fancy_name(user_data)}\n"
-        f"💰 Balance: ${bal_amt}\n"
+        f"💰 Balance: ${user_data.get('bal',0)}\n"
         f"🏆 Global Rank: {rank}\n"
-        f"❤️ Status: {status}\n"
-        f"⚔️ Kills: {kills}"
+        f"❤️ Status: {'dead 💀' if is_dead(user_data) else 'alive ❤️'}\n"
+        f"⚔️ Kills: {user_data.get('kills',0)}"
     )
 
     await update.message.reply_text(text)
@@ -128,7 +120,7 @@ async def rob(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return await update.message.reply_text("Reply to someone to rob.")
 
     if update.message.reply_to_message.sender_chat:
-        return await update.message.reply_text("❌ You cannot rob anonymous admin or channels.")
+        return await update.message.reply_text("❌ Cannot rob anonymous / channel.")
 
     robber_user = update.effective_user
     victim_user = update.message.reply_to_message.from_user
@@ -140,7 +132,7 @@ async def rob(update: Update, context: ContextTypes.DEFAULT_TYPE):
     victim = get_user_data(victim_user.id, victim_user)
 
     if is_dead(robber): return await update.message.reply_text("❌ You are dead.")
-    if is_dead(victim): return await update.message.reply_text("❌ Target already dead.")
+    if is_dead(victim): return await update.message.reply_text("❌ Target is dead.")
     if is_protected(victim): return await update.message.reply_text("🛡️ Target is protected.")
     if victim.get("bal", 0) <= 0: return await update.message.reply_text("❌ Target has no money.")
 
@@ -168,7 +160,7 @@ async def kill(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return await update.message.reply_text("Reply to someone to kill.")
 
     if update.message.reply_to_message.sender_chat:
-        return await update.message.reply_text("❌ You cannot kill anonymous admin or channels.")
+        return await update.message.reply_text("❌ Cannot kill anonymous / channel.")
 
     killer_user = update.effective_user
     victim_user = update.message.reply_to_message.from_user
