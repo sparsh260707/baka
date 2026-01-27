@@ -305,6 +305,20 @@ async def leaders(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(msg)
 
+# ===== /toprich =====
+async def toprich(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await can_use_economy(update, context): 
+        return
+
+    all_users = get_all_users()
+    all_users.sort(key=lambda x: x.get("bal", 0), reverse=True)
+
+    msg = "🌍 Top 10 Richest Players:\n\n"
+    for i, u in enumerate(all_users[:10], 1):
+        msg += f"{i}. {u.get('name','User')} — ${u.get('bal',0)}\n"
+
+    await update.message.reply_text(msg)
+
 # ===== /economy =====
 async def economy(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = """⚡️ Baka Bot Economy Guide
