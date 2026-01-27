@@ -1,47 +1,62 @@
 # commands/logger.py
 
 from telegram import Update
-from telegram.ext import ContextTypes, MessageHandler, filters
+from telegram.ext import ContextTypes, MessageHandler, CommandHandler, filters
 
 from config import LOG_CHAT_ID
 from database.db import users_col
 
 
-print("✅ LOGGER MODULE LOADED")
-
-
 # ===========================
-# Track BOT status changes (added / removed / kicked)
+# When new members join OR bot added
 # ===========================
-async def bot_status_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not update.my_chat_member:
+async def new_members_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message or not update.message.new_chat_members:
         return
 
     chat = update.effective_chat
-    new = update.my_chat_member.new_chat_member.status
-    old = update.my_chat_member.old_chat_member.status
+    adder = update.effective_user
 
-    print("🔥 BOT STATUS UPDATE:", old, "->", new)
+    for member in update.message.new_chat_members:
 
-    # Bot added
-    if old in ["left", "kicked"] and new in ["member", "administrator"]:
+        # 🤖 Bot added
+        if member.id == context.bot.id:
 
-        users_col.update_many({}, {"$addToSet": {"groups": chat.id}})
+            # Save group in DB
+            users_col.update_many({}, {"$addToSet": {"groups": chat.id}})
 
-        try:
-            await context.bot.send_message(
-                LOG_CHAT_ID,
-                f"✅ <b>Bot added to group</b>\n\n"
-                f"📝 {chat.title}\n"
-                f"🆔 <code>{chat.id}</code>",
-                parse_mode="HTML"
-            )
-        except:
-            pass
+            try:
+                await context.bot.send_message(
+                    LOG_CHAT_ID,
+                    f"✅ <b>Bot added to group</b>\n\n"
+                    f"📝 {chat.title}\n"
+                    f"🆔 <code>{chat.id}</code>\n"
+                    f"👤 Added by: {adder.mention_html()}",
+                    parse_mode="HTML"
+                )
+            except Exception as e:
+                print("Logger error (add):", e)
 
-    # Bot removed / kicked
-    elif new in ["left", "kicked"]:
+            try:
+                await context.bot.send_message(chat.id, "🤖 Hello! Thanks for adding me ❤️")
+            except:
+                pass
 
+
+# ===========================
+# When bot removed / kicked
+# ===========================
+async def left_member_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.message or not update.message.left_chat_member:
+        return
+
+    chat = update.effective_chat
+    member = update.message.left_chat_member
+
+    # 🤖 Bot removed
+    if member.id == context.bot.id:
+
+        # Remove group from DB
         users_col.update_many({}, {"$pull": {"groups": chat.id}})
 
         try:
@@ -52,8 +67,8 @@ async def bot_status_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
                 f"🆔 <code>{chat.id}</code>",
                 parse_mode="HTML"
             )
-        except:
-            pass
+        except Exception as e:
+            print("Logger error (remove):", e)
 
 
 # ===========================
@@ -73,16 +88,14 @@ async def start_logger(update: Update, context: ContextTypes.DEFAULT_TYPE):
             f"🆔 <code>{user.id}</code>",
             parse_mode="HTML"
         )
-    except:
-        pass
+    except Exception as e:
+        print("Logger error (/start):", e)
 
 
 # ===========================
 # Register
 # ===========================
 def register_logger(app):
-    app.add_handler(MessageHandler(filters.StatusUpdate.MY_CHAT_MEMBER, bot_status_handler))
-    app.add_handler(MessageHandler(filters.StatusUpdate.CHAT_MEMBER, bot_status_handler))
-
-    # start logger should be LOW priority so main /start still works
-    app.add_handler(MessageHandler(filters.COMMAND & filters.Regex("^/start"), start_logger), group=99)
+    app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, new_members_handler))
+    app.add_handler(MessageHandler(filters.StatusUpdate.LEFT_CHAT_MEMBER, left_member_handler))
+    app.add_handler(CommandHandler("start", start_logger), group=1)
