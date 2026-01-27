@@ -35,9 +35,6 @@ async def bot_status_handler(update: Update, context: ContextTypes.DEFAULT_TYPE)
     new_status = result.new_chat_member.status
     user_who_acted = result.from_user
 
-    # DEBUG
-    print(f"DEBUG: Bot status changed in {chat.title} from {old_status} to {new_status}")
-
     # Case: Bot Added/Promoted
     if new_status in ["member", "administrator"] and old_status in ["left", "kicked"]:
         msg = (
