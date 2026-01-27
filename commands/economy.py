@@ -282,6 +282,21 @@ async def revive(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text("❤️ Revive successful! (-$500)")
 
+# ===== /myrank =====
+async def myrank(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await can_use_economy(update, context):
+        return
+
+    all_users = get_all_users()
+    all_users.sort(key=lambda x: x.get("bal", 0), reverse=True)
+
+    rank = next(
+        (i for i, u in enumerate(all_users, 1) if u.get("id") == update.effective_user.id),
+        None,
+    )
+
+    await update.message.reply_text(f"🏆 Your global rank: {rank}")
+    
 # ===== /protect =====
 async def protect(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await can_use_economy(update, context):
