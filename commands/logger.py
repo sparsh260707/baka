@@ -1,12 +1,15 @@
+# commands/logger.py
+
 from telegram import Update
-from telegram.ext import ContextTypes, CommandHandler, ChatMemberHandler, MessageHandler, filters
+from telegram.ext import ContextTypes, CommandHandler, ChatMemberHandler
 from config import LOG_CHAT_ID
 
 def nezuko_style(text):
+    """Small Caps font for logger."""
     mapping = str.maketrans("abcdefghijklmnopqrstuvwxyz", "ᴀʙᴄᴅᴇғɢʜɪᴊᴋʟᴍɴᴏᴘǫʀsᴛᴜᴠᴡxʏᴢ")
     return str(text).lower().translate(mapping)
 
-# --- 🚀 /START LOGGER ---
+# --- 🚀 /START LOGGER (PRIVATE) ---
 async def start_logger(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.effective_chat or update.effective_chat.type != "private":
         return
@@ -16,32 +19,53 @@ async def start_logger(update: Update, context: ContextTypes.DEFAULT_TYPE):
         f"👤 {user.full_name}\n"
         f"🆔 <code>{user.id}</code>"
     )
-    try: await context.bot.send_message(LOG_CHAT_ID, msg, parse_mode="HTML")
-    except: pass
+    try:
+        await context.bot.send_message(LOG_CHAT_ID, msg, parse_mode="HTML")
+    except Exception as e:
+        print(f"❌ Logger Error (Start): {e}")
 
-# --- ✅ BOT JOIN/LEAVE HANDLER ---
+# --- ✅ BOT STATUS HANDLER (JOIN/KICK) ---
 async def bot_status_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat_member = update.my_chat_member
-    chat = chat_member.chat
-    new_status = chat_member.new_chat_member.status
-    old_status = chat_member.old_chat_member.status
-    user_who_added = chat_member.from_user
+    """Tracks when the bot itself is added or removed."""
+    result = update.my_chat_member
+    if not result: return
 
-    if new_status in ["member", "administrator"] and old_status in ["kicked", "left"]:
+    chat = result.chat
+    old_status = result.old_chat_member.status
+    new_status = result.new_chat_member.status
+    user_who_acted = result.from_user
+
+    # DEBUG
+    print(f"DEBUG: Bot status changed in {chat.title} from {old_status} to {new_status}")
+
+    # Case: Bot Added/Promoted
+    if new_status in ["member", "administrator"] and old_status in ["left", "kicked"]:
         msg = (
             f"✅ <b>{nezuko_style('bot added to group')}</b>\n\n"
             f"📝 {chat.title}\n"
             f"🆔 <code>{chat.id}</code>\n"
-            f"👤 {nezuko_style('added by')}: {user_who_added.full_name}"
+            f"👤 {nezuko_style('added by')}: {user_who_acted.full_name}"
         )
         try:
             await context.bot.send_message(LOG_CHAT_ID, msg, parse_mode="HTML")
             await context.bot.send_message(chat.id, "🤖 ᴛʜᴀɴᴋs ғᴏʀ ᴀᴅᴅɪɴɢ ᴍᴇ ʜᴇʀᴇ! ❤️")
         except: pass
 
-# --- 👤 MEMBER JOIN/LEAVE HANDLER (FIXED) ---
+    # Case: Bot Kicked/Left
+    elif new_status in ["kicked", "left"]:
+        msg = (
+            f"🚨 <b>{nezuko_style('bot removed from group')}</b>\n\n"
+            f"📝 {chat.title}\n"
+            f"🆔 <code>{chat.id}</code>\n"
+            f"👤 {nezuko_style('removed by')}: {user_who_acted.full_name}"
+        )
+        try:
+            await context.bot.send_message(LOG_CHAT_ID, msg, parse_mode="HTML")
+        except: pass
+
+# --- 👤 MEMBER ACTIVITY HANDLER (USER JOIN/LEAVE) ---
 async def member_activity_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    # Hum update.chat_member use karenge jo zyada reliable hai
+    """Tracks when users join or leave a group."""
     result = update.chat_member
     if not result: return
 
@@ -50,7 +74,9 @@ async def member_activity_handler(update: Update, context: ContextTypes.DEFAULT_
     old_status = result.old_chat_member.status
     new_status = result.new_chat_member.status
 
-    # Check for Join
+    if user.is_bot: return # Bots ko ignore karein
+
+    # Case: User Joined
     if old_status in ["left", "kicked"] and new_status == "member":
         msg = (
             f"👤 <b>{nezuko_style('new member joined')}</b>\n\n"
@@ -61,7 +87,7 @@ async def member_activity_handler(update: Update, context: ContextTypes.DEFAULT_
         try: await context.bot.send_message(LOG_CHAT_ID, msg, parse_mode="HTML")
         except: pass
 
-    # Check for Leave
+    # Case: User Left/Kicked
     elif old_status == "member" and new_status in ["left", "kicked"]:
         msg = (
             f"👤 <b>{nezuko_style('member left')}</b>\n\n"
@@ -74,10 +100,11 @@ async def member_activity_handler(update: Update, context: ContextTypes.DEFAULT_
 
 # --- 🛠️ REGISTRATION ---
 def register_logger(app):
+    # 1. Start command (Group 1 taaki main start ke sath conflict na ho)
     app.add_handler(CommandHandler("start", start_logger), group=1)
     
-    # 1. Bot join/leave track karne ke liye
+    # 2. Bot's own status (Kick/Join)
     app.add_handler(ChatMemberHandler(bot_status_handler, ChatMemberHandler.MY_CHAT_MEMBER))
     
-    # 2. Users join/leave track karne ke liye (Ye important hai!)
+    # 3. Members status (Join/Leave)
     app.add_handler(ChatMemberHandler(member_activity_handler, ChatMemberHandler.CHAT_MEMBER))
