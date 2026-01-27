@@ -244,6 +244,29 @@ async def revive(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text("❤️ Revive successful! (-$500)")
 
+# ===== /protect =====
+async def protect(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await can_use_economy(update, context):
+        return
+
+    user = get_user_data(update.effective_user.id, update.effective_user)
+
+    if not context.args or context.args[0] not in ["1d", "2d", "3d"]:
+        return await update.message.reply_text("Usage: /protect 1d/2d/3d")
+
+    costs = {"1d": 200, "2d": 500, "3d": 800}
+    days = context.args[0]
+
+    if user.get("bal", 200) < costs[days]:
+        return await update.message.reply_text("❌ Not enough balance.")
+
+    user["bal"] -= costs[days]
+    user["protect_until"] = now() + int(days[0]) * 86400
+
+    update_user_data(update.effective_user.id, user)
+    await update.message.reply_text(f"🛡️ You are protected for {days}")
+
+
 # ===== /economy =====
 async def economy(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
