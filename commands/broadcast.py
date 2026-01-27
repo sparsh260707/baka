@@ -10,7 +10,7 @@ from database.db import users_col
 
 
 # ===== CONFIG =====
-SUDO_USERS = {123456789}  # 👈 apna Telegram ID daal yaha
+SUDO_USERS = {8432723762}  # 👈 apna Telegram ID daal yaha
 
 
 # ===== BROADCAST =====
