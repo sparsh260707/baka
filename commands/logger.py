@@ -1,62 +1,47 @@
 # commands/logger.py
 
 from telegram import Update
-from telegram.ext import ContextTypes, MessageHandler, CommandHandler, filters
+from telegram.ext import ContextTypes, MessageHandler, filters
 
 from config import LOG_CHAT_ID
 from database.db import users_col
 
 
+print("✅ LOGGER MODULE LOADED")
+
+
 # ===========================
-# When new members join
+# Track BOT status changes (added / removed / kicked)
 # ===========================
-async def new_members_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not update.message or not update.message.new_chat_members:
+async def bot_status_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not update.my_chat_member:
         return
 
     chat = update.effective_chat
-    adder = update.effective_user
+    new = update.my_chat_member.new_chat_member.status
+    old = update.my_chat_member.old_chat_member.status
 
-    for member in update.message.new_chat_members:
+    print("🔥 BOT STATUS UPDATE:", old, "->", new)
 
-        # 🤖 Bot added
-        if member.id == context.bot.id:
+    # Bot added
+    if old in ["left", "kicked"] and new in ["member", "administrator"]:
 
-            # Save group in DB
-            users_col.update_many({}, {"$addToSet": {"groups": chat.id}})
+        users_col.update_many({}, {"$addToSet": {"groups": chat.id}})
 
-            try:
-                await context.bot.send_message(
-                    LOG_CHAT_ID,
-                    f"✅ <b>Bot added to group</b>\n\n"
-                    f"📝 {chat.title}\n"
-                    f"🆔 <code>{chat.id}</code>\n"
-                    f"👤 Added by: {adder.mention_html()}",
-                    parse_mode="HTML"
-                )
-            except:
-                pass
+        try:
+            await context.bot.send_message(
+                LOG_CHAT_ID,
+                f"✅ <b>Bot added to group</b>\n\n"
+                f"📝 {chat.title}\n"
+                f"🆔 <code>{chat.id}</code>",
+                parse_mode="HTML"
+            )
+        except:
+            pass
 
-            try:
-                await context.bot.send_message(chat.id, "🤖 Hello! Thanks for adding me ❤️")
-            except:
-                pass
+    # Bot removed / kicked
+    elif new in ["left", "kicked"]:
 
-
-# ===========================
-# When someone leaves
-# ===========================
-async def left_member_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not update.message or not update.message.left_chat_member:
-        return
-
-    chat = update.effective_chat
-    member = update.message.left_chat_member
-
-    # 🤖 Bot removed / kicked
-    if member.id == context.bot.id:
-
-        # Remove group from DB
         users_col.update_many({}, {"$pull": {"groups": chat.id}})
 
         try:
@@ -96,6 +81,8 @@ async def start_logger(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # Register
 # ===========================
 def register_logger(app):
-    app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, new_members_handler))
-    app.add_handler(MessageHandler(filters.StatusUpdate.LEFT_CHAT_MEMBER, left_member_handler))
-    app.add_handler(CommandHandler("start", start_logger), group=1)
+    app.add_handler(MessageHandler(filters.StatusUpdate.MY_CHAT_MEMBER, bot_status_handler))
+    app.add_handler(MessageHandler(filters.StatusUpdate.CHAT_MEMBER, bot_status_handler))
+
+    # start logger should be LOW priority so main /start still works
+    app.add_handler(MessageHandler(filters.COMMAND & filters.Regex("^/start"), start_logger), group=99)
