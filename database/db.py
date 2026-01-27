@@ -1,13 +1,13 @@
 # database/db.py
-import os
+
 import pymongo
 from datetime import datetime
-from dotenv import load_dotenv
+from config import MONGO_URL   # 👈 Now using config.py
 
-load_dotenv()
+# =====================================================
+# ================= MongoDB Connection =================
+# =====================================================
 
-# ===== MongoDB Connection =====
-MONGO_URL = os.getenv("MONGO_URL") or "mongodb://localhost:27017"
 client = pymongo.MongoClient(MONGO_URL)
 db = client["baka_bot_db"]
 
