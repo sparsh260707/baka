@@ -2,12 +2,13 @@
 
 from telegram import Update
 from telegram.ext import ContextTypes, MessageHandler, CommandHandler, filters
+
 from config import LOG_CHAT_ID
 from database.db import users_col
 
 
 # ===========================
-# New members OR bot added
+# When new members join
 # ===========================
 async def new_members_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.message.new_chat_members:
@@ -21,46 +22,29 @@ async def new_members_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
         # 🤖 Bot added
         if member.id == context.bot.id:
 
-            # Save group in all users
+            # Save group in DB
             users_col.update_many({}, {"$addToSet": {"groups": chat.id}})
 
-            if LOG_CHAT_ID:
-                try:
-                    await context.bot.send_message(
-                        LOG_CHAT_ID,
-                        f"✅ <b>Bot added to group</b>\n\n"
-                        f"📝 {chat.title}\n"
-                        f"🆔 <code>{chat.id}</code>\n"
-                        f"👤 Added by: {adder.mention_html()}",
-                        parse_mode="HTML"
-                    )
-                except Exception as e:
-                    print("Logger error:", e)
+            try:
+                await context.bot.send_message(
+                    LOG_CHAT_ID,
+                    f"✅ <b>Bot added to group</b>\n\n"
+                    f"📝 {chat.title}\n"
+                    f"🆔 <code>{chat.id}</code>\n"
+                    f"👤 Added by: {adder.mention_html()}",
+                    parse_mode="HTML"
+                )
+            except:
+                pass
 
             try:
                 await context.bot.send_message(chat.id, "🤖 Hello! Thanks for adding me ❤️")
             except:
                 pass
 
-        else:
-            # 👤 Normal user joined
-            if LOG_CHAT_ID:
-                try:
-                    await context.bot.send_message(
-                        LOG_CHAT_ID,
-                        f"👤 <b>New member joined</b>\n\n"
-                        f"Name: {member.full_name}\n"
-                        f"ID: <code>{member.id}</code>\n"
-                        f"Group: {chat.title}\n"
-                        f"🆔 <code>{chat.id}</code>",
-                        parse_mode="HTML"
-                    )
-                except Exception as e:
-                    print("Logger error:", e)
-
 
 # ===========================
-# When someone OR bot leaves
+# When someone leaves
 # ===========================
 async def left_member_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.message.left_chat_member:
@@ -69,32 +53,29 @@ async def left_member_handler(update: Update, context: ContextTypes.DEFAULT_TYPE
     chat = update.effective_chat
     member = update.message.left_chat_member
 
-    # 🤖 Bot removed
+    # 🤖 Bot removed / kicked
     if member.id == context.bot.id:
 
+        # Remove group from DB
         users_col.update_many({}, {"$pull": {"groups": chat.id}})
 
-        if LOG_CHAT_ID:
-            try:
-                await context.bot.send_message(
-                    LOG_CHAT_ID,
-                    f"🚨 <b>Bot removed from group</b>\n\n"
-                    f"📝 {chat.title}\n"
-                    f"🆔 <code>{chat.id}</code>",
-                    parse_mode="HTML"
-                )
-            except Exception as e:
-                print("Logger error:", e)
+        try:
+            await context.bot.send_message(
+                LOG_CHAT_ID,
+                f"🚨 <b>Bot removed from group</b>\n\n"
+                f"📝 {chat.title}\n"
+                f"🆔 <code>{chat.id}</code>",
+                parse_mode="HTML"
+            )
+        except:
+            pass
 
 
 # ===========================
-# /start logger
+# /start logger (private)
 # ===========================
 async def start_logger(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    if not LOG_CHAT_ID:
-        return
-
-    if update.effective_chat.type != "private":
+    if not update.effective_chat or update.effective_chat.type != "private":
         return
 
     user = update.effective_user
@@ -102,13 +83,13 @@ async def start_logger(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         await context.bot.send_message(
             LOG_CHAT_ID,
-            f"🚀 <b>Bot started in PM</b>\n\n"
+            f"🚀 <b>/start used</b>\n\n"
             f"👤 {user.full_name}\n"
             f"🆔 <code>{user.id}</code>",
             parse_mode="HTML"
         )
-    except Exception as e:
-        print("Logger error:", e)
+    except:
+        pass
 
 
 # ===========================
@@ -117,4 +98,4 @@ async def start_logger(update: Update, context: ContextTypes.DEFAULT_TYPE):
 def register_logger(app):
     app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, new_members_handler))
     app.add_handler(MessageHandler(filters.StatusUpdate.LEFT_CHAT_MEMBER, left_member_handler))
-    app.add_handler(CommandHandler("start", start_logger))
+    app.add_handler(CommandHandler("start", start_logger), group=1)
