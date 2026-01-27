@@ -1,16 +1,17 @@
 # bot.py
-import os
+
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application, CommandHandler, MessageHandler, CallbackQueryHandler, filters, ContextTypes
 )
-from dotenv import load_dotenv
 
-load_dotenv()
-BOT_TOKEN = os.getenv("BOT_TOKEN")
+# ================== LOAD CONFIG ==================
+from config import BOT_TOKEN
 
-# ================== IMPORT DATABASE & COMMANDS ==================
+# ================== IMPORT DATABASE ==================
 from database.db import get_user
+
+# ================== IMPORT COMMANDS ==================
 
 # Economy
 from commands.economy import (
@@ -100,10 +101,10 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
 def main():
     app = Application.builder().token(BOT_TOKEN).build()
 
-    # Auto register (priority)
+    # ===== Auto register (highest priority) =====
     app.add_handler(MessageHandler(filters.ALL, auto_register_handler), group=-1)
 
-    # Start & buttons
+    # ===== Start & buttons =====
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_error_handler(error_handler)
@@ -148,10 +149,10 @@ def main():
     app.add_handler(CommandHandler("couple", couple))
     app.add_handler(CommandHandler("couples", couple))
 
-    # ===== Welcome New Members =====
+    # ===== Welcome =====
     app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome))
 
-    # ===== Game & Admin =====
+    # ===== Game, Logger, Broadcast, Admin =====
     register_game_commands(app)
     register_logger(app)
     register_broadcast(app)
