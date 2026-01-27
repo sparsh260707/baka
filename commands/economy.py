@@ -205,6 +205,20 @@ async def give(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_text(f"💸 Transfer successful: ${amount}")
 
+ #===== /leaders =====
+async def leaders(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    if not await can_use_economy(update, context):
+        return
+
+    all_users = get_all_users()
+    all_users.sort(key=lambda x: x.get("kills", 0), reverse=True)
+
+    msg = "🔥 Top 10 Killers:\n\n"
+    for i, u in enumerate(all_users[:10], 1):
+        msg += f"{i}. {u.get('name','User')} — {u.get('kills',0)} kills\n"
+
+    await update.message.reply_text(msg)
+
 # ===== /kill =====
 async def kill(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not await can_use_economy(update, context):
