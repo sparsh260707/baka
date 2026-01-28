@@ -2,7 +2,7 @@
 
 import pymongo
 from datetime import datetime
-from config import MONGO_URL   # 👈 Now using config.py
+from config import MONGO_URL
 
 # =====================================================
 # ================= MongoDB Connection =================
@@ -11,7 +11,7 @@ from config import MONGO_URL   # 👈 Now using config.py
 client = pymongo.MongoClient(MONGO_URL)
 db = client["baka_bot_db"]
 
-# ===== Collections =====
+# ================= Collections =================
 users_col = db["users"]
 groups_claim_col = db["groups_claim"]
 settings_col = db["settings"]
@@ -25,7 +25,7 @@ def get_user(user, chat_id=None):
     """
     Always returns a valid user dict.
     Auto-creates user if not exists.
-    Also tracks groups the user used the bot in.
+    Tracks groups where user used the bot.
     """
 
     if not user or not hasattr(user, "id"):
@@ -42,7 +42,6 @@ def get_user(user, chat_id=None):
         }
 
     uid = int(user.id)
-
     user_data = users_col.find_one({"id": uid})
 
     if not user_data:
@@ -60,16 +59,15 @@ def get_user(user, chat_id=None):
         }
         users_col.insert_one(user_data)
 
-    # ===== Safety keys =====
+    # Safety defaults
     user_data.setdefault("groups", [])
-    user_data.setdefault("name", getattr(user, "first_name", f"User_{uid}"))
     user_data.setdefault("bal", 0)
     user_data.setdefault("dead_until", 0)
     user_data.setdefault("protect_until", 0)
     user_data.setdefault("kills", 0)
     user_data.setdefault("rob", 0)
 
-    # ===== Group tracking =====
+    # Track groups
     if chat_id is not None:
         chat_id = int(chat_id)
         if chat_id not in user_data["groups"]:
@@ -83,9 +81,6 @@ def get_user(user, chat_id=None):
 
 
 def get_all_groups():
-    """
-    Returns ALL unique group IDs where bot was ever used.
-    """
     groups = set()
     for u in users_col.find({}, {"groups": 1}):
         for g in u.get("groups", []):
@@ -94,16 +89,10 @@ def get_all_groups():
 
 
 def get_all_users():
-    """
-    Returns all user IDs.
-    """
     return [int(u["id"]) for u in users_col.find({}, {"id": 1})]
 
 
 def get_group_members(chat_id):
-    """
-    Returns all users who are members of this group.
-    """
     return list(users_col.find({"groups": int(chat_id)}))
 
 
@@ -112,8 +101,11 @@ def get_group_members(chat_id):
 # =====================================================
 
 def is_group_claimed(chat_id):
-    data = groups_claim_col.find_one({"chat_id": int(chat_id)})
-    return bool(data and data.get("claimed", False))
+    """
+    One-time permanent claim per group.
+    Kick / rejoin / new users have no effect.
+    """
+    return groups_claim_col.find_one({"chat_id": int(chat_id)}) is not None
 
 
 def mark_group_claimed(chat_id, user_id):
@@ -122,9 +114,8 @@ def mark_group_claimed(chat_id, user_id):
         {
             "$set": {
                 "chat_id": int(chat_id),
-                "claimed": True,
                 "claimed_by": int(user_id),
-                "at": datetime.utcnow(),
+                "claimed_at": datetime.utcnow(),
             }
         },
         upsert=True
@@ -136,9 +127,6 @@ def mark_group_claimed(chat_id, user_id):
 # =====================================================
 
 def is_economy_on(chat_id):
-    """
-    Default = True
-    """
     res = settings_col.find_one({"chat_id": int(chat_id)})
     return res.get("economy_status", True) if res else True
 
@@ -156,16 +144,10 @@ def set_economy_status(chat_id, status: bool):
 # =====================================================
 
 def get_couple(chat_id, date):
-    """
-    Fetch couple of the day from MongoDB.
-    """
     return couples_col.find_one({"chat_id": int(chat_id), "date": date})
 
 
 def save_couple(chat_id, date, couple_data):
-    """
-    Save today's couple to MongoDB.
-    """
     couples_col.update_one(
         {"chat_id": int(chat_id), "date": date},
         {
