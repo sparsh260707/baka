@@ -1,20 +1,23 @@
 import time
 from datetime import datetime, timedelta
+
 from telegram import Update, ChatMember
-from telegram.ext import ContextTypes, CommandHandler, MessageHandler, filters
+from telegram.ext import (
+    ContextTypes,
+    CommandHandler,
+    MessageHandler,
+    filters
+)
 
 from database.db import (
-    # user
     get_user,
     users_col,
 
-    # group economy
-    get_user_data,
-    update_user_data,
     get_group_data,
     update_group_data,
+    get_user_data,
+    update_user_data,
 
-    # claim system
     is_group_claimed,
     mark_group_claimed
 )
@@ -25,7 +28,23 @@ OWNER_JOIN_BONUS = 1000
 DAILY_MSG_TARGET = 100
 DAILY_GROUP_REWARD = 500
 DAILY_USER_REWARD = 100
+
+DAILY_RESET_HOURS = 24
 # ============================================
+
+
+# =====================================================
+# INTERNAL HELPERS
+# =====================================================
+
+def _utcnow():
+    return datetime.utcnow()
+
+
+def _need_reset(last_reset: datetime):
+    if not last_reset:
+        return True
+    return (_utcnow() - last_reset) >= timedelta(hours=DAILY_RESET_HOURS)
 
 
 # =====================================================
@@ -33,11 +52,11 @@ DAILY_USER_REWARD = 100
 # =====================================================
 async def on_bot_added(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat = update.effective_chat
-
-    if chat.type not in ["group", "supergroup"]:
+    if chat.type not in ("group", "supergroup"):
         return
 
     group = get_group_data(chat.id)
+
     if group.get("joined_bonus_given"):
         return
 
@@ -54,46 +73,53 @@ async def on_bot_added(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "joined_bonus_given": True,
         "daily_msgs": 0,
         "reward_given": False,
-        "last_reset": datetime.utcnow()
+        "reward_user": None,
+        "last_reset": _utcnow()
     })
 
     update_group_data(chat.id, group)
 
 
 # =====================================================
-# 2️⃣ DAILY GROUP ACTIVITY TRACK
+# 2️⃣ DAILY GROUP ACTIVITY TRACK (ANTI SPAM SAFE)
 # =====================================================
 async def track_group_activity(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message:
         return
 
     chat = update.effective_chat
-    if chat.type not in ["group", "supergroup"]:
+    if chat.type not in ("group", "supergroup"):
         return
 
     group = get_group_data(chat.id)
-    now = datetime.utcnow()
+    now = _utcnow()
 
-    # daily reset
-    if now - group.get("last_reset", now) > timedelta(days=1):
+    if _need_reset(group.get("last_reset")):
         group["daily_msgs"] = 0
         group["reward_given"] = False
+        group["reward_user"] = None
         group["last_reset"] = now
 
-    group["daily_msgs"] += 1
+    group["daily_msgs"] = group.get("daily_msgs", 0) + 1
 
-    if group["daily_msgs"] >= DAILY_MSG_TARGET and not group["reward_given"]:
+    if (
+        group["daily_msgs"] >= DAILY_MSG_TARGET
+        and not group["reward_given"]
+    ):
+        uid = update.effective_user.id
+
         group["wallet"] = group.get("wallet", 0) + DAILY_GROUP_REWARD
         group["reward_given"] = True
+        group["reward_user"] = uid
 
-        user = get_user_data(update.effective_user.id, update.effective_user)
+        user = get_user_data(uid, update.effective_user)
         user["bal"] += DAILY_USER_REWARD
-        update_user_data(update.effective_user.id, user)
+        update_user_data(uid, user)
 
         await update.message.reply_text(
-            f"🎉 Daily activity completed!\n"
+            f"🎉 Daily Activity Completed!\n"
             f"🏦 Group +{DAILY_GROUP_REWARD}\n"
-            f"👤 You +{DAILY_USER_REWARD}"
+            f"👤 {update.effective_user.first_name} +{DAILY_USER_REWARD}"
         )
 
     update_group_data(chat.id, group)
@@ -104,7 +130,7 @@ async def track_group_activity(update: Update, context: ContextTypes.DEFAULT_TYP
 # =====================================================
 async def group_balance(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat = update.effective_chat
-    if chat.type not in ["group", "supergroup"]:
+    if chat.type not in ("group", "supergroup"):
         return await update.message.reply_text("❌ Group only command.")
 
     group = get_group_data(chat.id)
@@ -117,26 +143,32 @@ async def give_from_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat = update.effective_chat
     user = update.effective_user
 
-    if chat.type not in ["group", "supergroup"]:
+    if chat.type not in ("group", "supergroup"):
         return
 
     member = await chat.get_member(user.id)
-    if member.status not in ["administrator", "creator"]:
+    if member.status not in ("administrator", "creator"):
         return await update.message.reply_text("❌ Admins only.")
 
     if len(context.args) != 2 or not update.message.entities:
-        return await update.message.reply_text("Usage: /givedp @user amount")
+        return await update.message.reply_text(
+            "Usage: /givedp @user amount"
+        )
 
     target = update.message.entities[1].user
 
     try:
         amount = int(context.args[1])
-    except:
+        if amount <= 0:
+            raise ValueError
+    except Exception:
         return await update.message.reply_text("❌ Invalid amount.")
 
     group = get_group_data(chat.id)
     if group.get("wallet", 0) < amount:
-        return await update.message.reply_text("❌ Insufficient group balance.")
+        return await update.message.reply_text(
+            "❌ Insufficient group balance."
+        )
 
     target_data = get_user_data(target.id, target)
     target_data["bal"] += amount
@@ -151,24 +183,26 @@ async def give_from_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # =====================================================
-# 4️⃣ /claim (ONE TIME GROUP)
+# 4️⃣ /claim (ONE TIME PER GROUP)
 # =====================================================
 async def claim(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat = update.effective_chat
     user = update.effective_user
 
-    if chat.type not in ["group", "supergroup"]:
-        return await update.message.reply_text("❌ Group only command.")
+    if chat.type not in ("group", "supergroup"):
+        return await update.message.reply_text("❌ Group only.")
 
     if is_group_claimed(chat.id):
         return await update.message.reply_text(
-            "❌ This group is already claimed permanently."
+            "❌ This group is already claimed."
         )
 
     try:
         members = await context.bot.get_chat_member_count(chat.id)
-    except:
-        return await update.message.reply_text("❌ Cannot fetch members count.")
+    except Exception:
+        return await update.message.reply_text(
+            "❌ Unable to fetch members."
+        )
 
     if members < 100:
         return await update.message.reply_text(
@@ -211,9 +245,8 @@ async def daily(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if now - last < 86400:
         left = 86400 - (now - last)
-        time_left = str(timedelta(seconds=left)).split(".")[0]
         return await update.message.reply_text(
-            f"⏳ Already claimed.\nTry after {time_left}"
+            f"⏳ Try again after {str(timedelta(seconds=left)).split('.')[0]}"
         )
 
     users_col.update_one(
@@ -226,6 +259,62 @@ async def daily(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # =====================================================
+# 🆕 6️⃣ DONATE TO GROUP
+# =====================================================
+async def donate_group(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat = update.effective_chat
+    user = update.effective_user
+
+    if chat.type not in ("group", "supergroup"):
+        return
+
+    if len(context.args) != 1:
+        return await update.message.reply_text(
+            "Usage: /donategroup amount"
+        )
+
+    try:
+        amount = int(context.args[0])
+        if amount <= 0:
+            raise ValueError
+    except Exception:
+        return await update.message.reply_text("❌ Invalid amount.")
+
+    user_data = get_user_data(user.id, user)
+    if user_data["bal"] < amount:
+        return await update.message.reply_text("❌ Insufficient balance.")
+
+    group = get_group_data(chat.id)
+
+    user_data["bal"] -= amount
+    group["wallet"] = group.get("wallet", 0) + amount
+
+    update_user_data(user.id, user_data)
+    update_group_data(chat.id, group)
+
+    await update.message.reply_text(
+        f"❤️ {user.first_name} donated {amount} coins to group!"
+    )
+
+
+# =====================================================
+# 🆕 7️⃣ TOP GROUPS
+# =====================================================
+async def top_groups(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    groups = list(context.application.bot_data.get("groups_cache", []))
+    if not groups:
+        return await update.message.reply_text("No data available.")
+
+    groups = sorted(groups, key=lambda x: x.get("wallet", 0), reverse=True)[:10]
+
+    text = "🏆 Top Groups\n\n"
+    for i, g in enumerate(groups, 1):
+        text += f"{i}. {g.get('title','Unknown')} — {g.get('wallet',0)} 💰\n"
+
+    await update.message.reply_text(text)
+
+
+# =====================================================
 # REGISTER
 # =====================================================
 def register_game_commands(app):
@@ -233,4 +322,9 @@ def register_game_commands(app):
     app.add_handler(CommandHandler("daily", daily))
     app.add_handler(CommandHandler("groupbal", group_balance))
     app.add_handler(CommandHandler("givedp", give_from_group))
-    app.add_handler(MessageHandler(filters.TEXT & filters.ChatType.GROUPS, track_group_activity))
+    app.add_handler(CommandHandler("donategroup", donate_group))
+    app.add_handler(CommandHandler("topgroup", top_groups))
+    app.add_handler(MessageHandler(
+        filters.TEXT & filters.ChatType.GROUPS,
+        track_group_activity
+    ))
