@@ -27,6 +27,7 @@ from commands.quote import q
 from commands.welcome import welcome
 from commands.td import get_truth, get_dare
 from commands.swagat import swagat, welcome_new_member   # ✅ NEW
+from commands.radhe import register_radhe
 
 # Fun
 from commands.fun import (
@@ -151,6 +152,7 @@ def main():
     register_logger(app)
     register_broadcast(app)
     register_admin_commands(app)
+    register_radhe(app)
 
     # 🔹 AI Chat
     app.add_handler(CommandHandler("ask", ask_ai))
