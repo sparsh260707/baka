@@ -26,6 +26,7 @@ from commands.shop import items, item, gift
 from commands.quote import q
 from commands.welcome import welcome
 from commands.td import get_truth, get_dare
+from commands.swagat import swagat, welcome_new_member   # ✅ NEW
 
 # Fun
 from commands.fun import (
@@ -94,18 +95,17 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
 
 # ================== MAIN ==================
 def main():
-    # Application builder without allowed_updates (fixed error)
     app = Application.builder().token(BOT_TOKEN).build()
 
-    # Priority -1: Auto register
+    # 🔹 Priority -1: Auto register
     app.add_handler(MessageHandler(filters.ALL, auto_register_handler), group=-1)
 
-    # Core Handlers
+    # 🔹 Core
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_error_handler(error_handler)
 
-    # Economy
+    # 🔹 Economy
     app.add_handler(CommandHandler("bal", bal))
     app.add_handler(CommandHandler("q", q))
     app.add_handler(CommandHandler("rob", rob))
@@ -120,7 +120,7 @@ def main():
     app.add_handler(CommandHandler("open", open_economy))
     app.add_handler(CommandHandler("close", close_economy))
 
-    # Fun & Social
+    # 🔹 Fun & Social
     app.add_handler(CommandHandler("items", items))
     app.add_handler(CommandHandler("item", item))
     app.add_handler(CommandHandler("gift", gift))
@@ -139,26 +139,26 @@ def main():
     app.add_handler(CommandHandler("couple", couple))
     app.add_handler(CommandHandler("couples", couple))
 
-    # Modules
+    # 🔹 Swagat System
+    app.add_handler(CommandHandler("swagat", swagat))
+    app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome_new_member))
+
+    # 🔹 Old welcome (if you still want)
+    app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome))
+
+    # 🔹 Modules
     register_game_commands(app)
     register_logger(app)
     register_broadcast(app)
     register_admin_commands(app)
 
-    # Service Updates
-    app.add_handler(MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome))
-
-    # AI Chat
+    # 🔹 AI Chat
     app.add_handler(CommandHandler("ask", ask_ai))
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), ai_message_handler))
 
     print("🤖 Baka Bot is online and watching over you!")
 
-    # Fixed: allowed_updates moved to run_polling
-    app.run_polling(
-        drop_pending_updates=True, 
-        allowed_updates=Update.ALL_TYPES
-    )
+    app.run_polling(drop_pending_updates=True, allowed_updates=Update.ALL_TYPES)
 
 if __name__ == "__main__":
     main()
