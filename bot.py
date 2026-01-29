@@ -8,24 +8,26 @@ from telegram.ext import (
     filters,
 )
 
-# ================== LOAD CONFIG ==================
+# ================== CONFIG ==================
 from config import BOT_TOKEN
 
 # ================== DATABASE ==================
 from database.db import get_user
 
-# ================== COMMAND MODULES ==================
+# ================== ECONOMY ==================
 from commands.economy import (
     bal, rob, kill, revive, protect, give,
     myrank, toprich, leaders,
     economy, open_economy, close_economy
 )
 
+# ================== MODULES ==================
 from commands.game import register_game_commands
 from commands.admin import register_admin_commands
 from commands.logger import register_logger
 from commands.broadcast import register_broadcast
 
+# ================== FEATURES ==================
 from commands.chatbot import ask_ai, ai_message_handler
 from commands.couple import couple
 from commands.shop import items, item, gift
@@ -44,7 +46,7 @@ START_IMAGE_URL = "https://files.catbox.moe/yzpfuh.jpg"
 
 
 # =====================================================
-# AUTO REGISTER (runs on every update, lowest priority)
+# AUTO USER REGISTER (LOWEST PRIORITY)
 # =====================================================
 async def auto_register_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
@@ -53,7 +55,7 @@ async def auto_register_handler(update: Update, context: ContextTypes.DEFAULT_TY
         if user and not user.is_bot and chat:
             get_user(user, chat.id)
     except Exception as e:
-        print(f"❌ Auto-register error: {e}")
+        print(f"[AUTO-REGISTER ERROR] {e}")
 
 
 # =====================================================
@@ -61,15 +63,18 @@ async def auto_register_handler(update: Update, context: ContextTypes.DEFAULT_TY
 # =====================================================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
+    chat = update.effective_chat
 
-    if update.effective_chat.type != "private":
+    if chat.type != "private":
         return await update.message.reply_text(
             "📩 Open private chat to start the bot.",
             reply_markup=InlineKeyboardMarkup([
-                [InlineKeyboardButton(
-                    "💬 Open Private",
-                    url=f"https://t.me/{context.bot.username}"
-                )]
+                [
+                    InlineKeyboardButton(
+                        "💬 Open Private Chat",
+                        url=f"https://t.me/{context.bot.username}"
+                    )
+                ]
             ])
         )
 
@@ -85,7 +90,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             InlineKeyboardButton("🧸 Friends", url="https://t.me/codebotnetwork"),
             InlineKeyboardButton(
                 "🎮 Games",
-                url=f"https://t.me/{context.bot.username}"
+                url="https://t.me/codebotnetwork"),
             )
         ],
         [
@@ -98,7 +103,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     text = (
         f"✨ Hey, *{user.first_name}*\n\n"
-        "💌 You're talking to *Baka*, a fun & smart bot!"
+        "💌 You're talking to *Baka* — fun, games & economy bot."
     )
 
     await update.message.reply_photo(
@@ -110,7 +115,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
 
 # =====================================================
-# CALLBACK BUTTONS
+# CALLBACK HANDLER
 # =====================================================
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
@@ -124,7 +129,7 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ERROR HANDLER
 # =====================================================
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
-    print(f"❌ Bot Error: {context.error}")
+    print(f"[BOT ERROR] {context.error}")
 
 
 # =====================================================
@@ -133,18 +138,18 @@ async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
 def main():
     app = Application.builder().token(BOT_TOKEN).build()
 
-    # Auto register (priority -1)
+    # 🔹 Auto register (priority -1)
     app.add_handler(
         MessageHandler(filters.ALL, auto_register_handler),
         group=-1
     )
 
-    # Core
+    # 🔹 Core
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(button_handler))
     app.add_error_handler(error_handler)
 
-    # Economy
+    # 🔹 Economy
     app.add_handler(CommandHandler("bal", bal))
     app.add_handler(CommandHandler("rob", rob))
     app.add_handler(CommandHandler("kill", kill))
@@ -158,13 +163,13 @@ def main():
     app.add_handler(CommandHandler("open", open_economy))
     app.add_handler(CommandHandler("close", close_economy))
 
-    # Game / Admin / Logger / Broadcast
+    # 🔹 Game / Admin / Logger / Broadcast
     register_game_commands(app)
     register_admin_commands(app)
     register_logger(app)
     register_broadcast(app)
 
-    # Fun / Social
+    # 🔹 Fun / Social
     app.add_handler(CommandHandler("items", items))
     app.add_handler(CommandHandler("item", item))
     app.add_handler(CommandHandler("gift", gift))
@@ -184,18 +189,18 @@ def main():
     app.add_handler(CommandHandler("couples", couple))
     app.add_handler(CommandHandler("q", q))
 
-    # Welcome
+    # 🔹 Welcome
     app.add_handler(
         MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome)
     )
 
-    # AI Chat
+    # 🔹 AI Chat (last)
     app.add_handler(CommandHandler("ask", ask_ai))
     app.add_handler(
         MessageHandler(filters.TEXT & ~filters.COMMAND, ai_message_handler)
     )
 
-    print("🤖 Baka Bot is online.")
+    print("🤖 Baka Bot is ONLINE")
 
     app.run_polling(
         drop_pending_updates=True,
