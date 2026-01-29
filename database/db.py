@@ -16,6 +16,7 @@ users_col = db["users"]
 groups_claim_col = db["groups_claim"]
 settings_col = db["settings"]
 couples_col = db["couples"]
+groups_col = db["groups"]   # 👈 REQUIRED FOR GAME SYSTEM
 
 # =====================================================
 # ================= USER SYSTEM ========================
@@ -101,10 +102,6 @@ def get_group_members(chat_id):
 # =====================================================
 
 def is_group_claimed(chat_id):
-    """
-    One-time permanent claim per group.
-    Kick / rejoin / new users have no effect.
-    """
     return groups_claim_col.find_one({"chat_id": int(chat_id)}) is not None
 
 
@@ -135,6 +132,42 @@ def set_economy_status(chat_id, status: bool):
     settings_col.update_one(
         {"chat_id": int(chat_id)},
         {"$set": {"economy_status": bool(status)}},
+        upsert=True
+    )
+
+
+# =====================================================
+# ================= GROUP ECONOMY (GAME) ==============
+# =====================================================
+
+def get_group_data(chat_id):
+    chat_id = int(chat_id)
+    group = groups_col.find_one({"chat_id": chat_id})
+
+    if not group:
+        group = {
+            "chat_id": chat_id,
+            "wallet": 0,
+            "daily_msgs": 0,
+            "reward_given": False,
+            "last_reset": datetime.utcnow(),
+            "created_at": datetime.utcnow()
+        }
+        groups_col.insert_one(group)
+
+    # Safety defaults
+    group.setdefault("wallet", 0)
+    group.setdefault("daily_msgs", 0)
+    group.setdefault("reward_given", False)
+    group.setdefault("last_reset", datetime.utcnow())
+
+    return group
+
+
+def update_group_data(chat_id, data: dict):
+    groups_col.update_one(
+        {"chat_id": int(chat_id)},
+        {"$set": data},
         upsert=True
     )
 
@@ -172,6 +205,7 @@ try:
     users_col.create_index("id", unique=True)
     settings_col.create_index("chat_id", unique=True)
     groups_claim_col.create_index("chat_id", unique=True)
+    groups_col.create_index("chat_id", unique=True)
     couples_col.create_index([("chat_id", 1), ("date", 1)], unique=True)
 except Exception:
     pass
