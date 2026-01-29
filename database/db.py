@@ -96,6 +96,48 @@ def get_group_members(chat_id):
     return list(users_col.find({"groups": int(chat_id)}))
 
 
+# ================= EVENT SYSTEM ======================
+
+def get_event(chat_id):
+    return settings_col.find_one(
+        {"chat_id": int(chat_id)},
+        {"event": 1}
+    )
+
+def start_event(chat_id, multiplier=2):
+    settings_col.update_one(
+        {"chat_id": int(chat_id)},
+        {
+            "$set": {
+                "event": {
+                    "active": True,
+                    "multiplier": int(multiplier),
+                    "started_at": datetime.utcnow()
+                }
+            }
+        },
+        upsert=True
+    )
+
+def stop_event(chat_id):
+    settings_col.update_one(
+        {"chat_id": int(chat_id)},
+        {"$set": {"event.active": False}},
+        upsert=True
+    )
+
+def get_event_multiplier(chat_id):
+    data = settings_col.find_one({"chat_id": int(chat_id)})
+    if not data:
+        return 1
+
+    event = data.get("event")
+    if not event or not event.get("active"):
+        return 1
+
+    return int(event.get("multiplier", 1))
+
+
 # =====================================================
 # ================= CLAIM SYSTEM =======================
 # =====================================================
