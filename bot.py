@@ -1,3 +1,5 @@
+# bot.py
+
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application,
@@ -88,10 +90,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         ],
         [
             InlineKeyboardButton("🧸 Friends", url="https://t.me/codebotnetwork"),
-            InlineKeyboardButton(
-                "🎮 Games",
-                url="https://t.me/codebotnetwork"),
-            )
+            InlineKeyboardButton("🎮 Games", url="https://t.me/codebotnetwork")
         ],
         [
             InlineKeyboardButton(
