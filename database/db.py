@@ -1,5 +1,3 @@
-# database/db.py
-
 import pymongo
 from datetime import datetime
 from config import MONGO_URL
@@ -22,12 +20,6 @@ couples_col = db["couples"]
 # =====================================================
 
 def get_user(user, chat_id=None):
-    """
-    Always returns a valid user dict.
-    Auto-creates user if not exists.
-    Tracks groups where user used the bot.
-    """
-
     if not user or not hasattr(user, "id"):
         return {
             "id": 0,
@@ -59,7 +51,6 @@ def get_user(user, chat_id=None):
         }
         users_col.insert_one(user_data)
 
-    # Safety defaults
     user_data.setdefault("groups", [])
     user_data.setdefault("bal", 0)
     user_data.setdefault("dead_until", 0)
@@ -67,7 +58,6 @@ def get_user(user, chat_id=None):
     user_data.setdefault("kills", 0)
     user_data.setdefault("rob", 0)
 
-    # Track groups
     if chat_id is not None:
         chat_id = int(chat_id)
         if chat_id not in user_data["groups"]:
@@ -96,43 +86,46 @@ def get_group_members(chat_id):
     return list(users_col.find({"groups": int(chat_id)}))
 
 
-# ================= EVENT SYSTEM ======================
+# =====================================================
+# ================= RADHE EVENT SYSTEM =================
+# =====================================================
 
-def get_event(chat_id):
-    return settings_col.find_one(
-        {"chat_id": int(chat_id)},
-        {"event": 1}
-    )
-
-def start_event(chat_id, multiplier=2):
+def start_radhe_event(chat_id, multiplier, end_time):
+    """
+    end_time = unix timestamp (seconds)
+    """
     settings_col.update_one(
         {"chat_id": int(chat_id)},
-        {
-            "$set": {
-                "event": {
-                    "active": True,
-                    "multiplier": int(multiplier),
-                    "started_at": datetime.utcnow()
-                }
+        {"$set": {
+            "radhe_event": {
+                "active": True,
+                "multiplier": int(multiplier),
+                "end_time": float(end_time)
             }
-        },
+        }},
         upsert=True
     )
 
-def stop_event(chat_id):
+
+def stop_radhe_event(chat_id):
     settings_col.update_one(
         {"chat_id": int(chat_id)},
-        {"$set": {"event.active": False}},
+        {"$set": {"radhe_event.active": False}},
         upsert=True
     )
 
-def get_event_multiplier(chat_id):
+
+def get_radhe_multiplier(chat_id):
     data = settings_col.find_one({"chat_id": int(chat_id)})
     if not data:
         return 1
 
-    event = data.get("event")
+    event = data.get("radhe_event")
     if not event or not event.get("active"):
+        return 1
+
+    if event.get("end_time", 0) < datetime.utcnow().timestamp():
+        stop_radhe_event(chat_id)
         return 1
 
     return int(event.get("multiplier", 1))
@@ -143,23 +136,17 @@ def get_event_multiplier(chat_id):
 # =====================================================
 
 def is_group_claimed(chat_id):
-    """
-    One-time permanent claim per group.
-    Kick / rejoin / new users have no effect.
-    """
     return groups_claim_col.find_one({"chat_id": int(chat_id)}) is not None
 
 
 def mark_group_claimed(chat_id, user_id):
     groups_claim_col.update_one(
         {"chat_id": int(chat_id)},
-        {
-            "$set": {
-                "chat_id": int(chat_id),
-                "claimed_by": int(user_id),
-                "claimed_at": datetime.utcnow(),
-            }
-        },
+        {"$set": {
+            "chat_id": int(chat_id),
+            "claimed_by": int(user_id),
+            "claimed_at": datetime.utcnow(),
+        }},
         upsert=True
     )
 
@@ -192,16 +179,14 @@ def get_couple(chat_id, date):
 def save_couple(chat_id, date, couple_data):
     couples_col.update_one(
         {"chat_id": int(chat_id), "date": date},
-        {
-            "$set": {
-                "chat_id": int(chat_id),
-                "date": date,
-                "c1_id": int(couple_data["c1_id"]),
-                "c2_id": int(couple_data["c2_id"]),
-                "image": couple_data["image"],
-                "created_at": datetime.utcnow()
-            }
-        },
+        {"$set": {
+            "chat_id": int(chat_id),
+            "date": date,
+            "c1_id": int(couple_data["c1_id"]),
+            "c2_id": int(couple_data["c2_id"]),
+            "image": couple_data["image"],
+            "created_at": datetime.utcnow()
+        }},
         upsert=True
     )
 
