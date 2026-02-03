@@ -1,28 +1,34 @@
-# bot.py
-
 # ================== LOAD .env FIRST ==================
 from dotenv import load_dotenv
 load_dotenv()
 
 import os
+import logging
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import (
     Application, CommandHandler, MessageHandler,
-    CallbackQueryHandler, filters, ContextTypes
+    CallbackQueryHandler, ContextTypes, filters
+)
+
+# ================== LOGGING ==================
+logging.basicConfig(
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    level=logging.INFO
 )
 
 # ================== LOAD CONFIG ==================
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 if not BOT_TOKEN:
-    raise RuntimeError("❌ BOT_TOKEN not found in environment")
+    raise RuntimeError("❌ BOT_TOKEN not found")
 
 # ================== IMPORT DATABASE ==================
 from database.db import get_user
 
 # ================== IMPORT COMMANDS ==================
 from commands.economy import (
-    bal, rob, kill, revive, protect, give, myrank, toprich,
-    leaders, economy, open_economy, close_economy
+    bal, rob, kill, revive, protect, give,
+    myrank, toprich, leaders,
+    economy, open_economy, close_economy
 )
 from commands.game import register_game_commands
 from commands.admin import register_admin_commands
@@ -51,18 +57,16 @@ async def auto_register_handler(update: Update, context: ContextTypes.DEFAULT_TY
     try:
         user = update.effective_user
         chat = update.effective_chat
-        if user and not user.is_bot and chat:
+        if user and chat and not user.is_bot:
             get_user(user, chat.id)
     except Exception as e:
-        print(f"❌ Registration Error: {e}")
+        logging.error(f"Auto-register error: {e}")
 
 # ================== /START ==================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    user = update.effective_user
-
     if update.effective_chat.type != "private":
         return await update.message.reply_text(
-            "📩 Check your private chat to start!",
+            "📩 Start me in private",
             reply_markup=InlineKeyboardMarkup([
                 [InlineKeyboardButton(
                     "💬 Open Private",
@@ -71,21 +75,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ])
         )
 
+    user = update.effective_user
     keyboard = [
         [
             InlineKeyboardButton("💬 Talk to Baka", callback_data="talk_baka"),
-            InlineKeyboardButton(
-                "✨ ⏤͟͞ 𝙎𝙋𝘼𝙍𝙎𝙃 𝘽𝘼𝙉𝙄𝙔𝘼",
-                url="https://t.me/oye_sparsh"
-            )
+            InlineKeyboardButton("✨ SPARSH", url="https://t.me/oye_sparsh")
         ],
         [
-            InlineKeyboardButton("🧸 Friends", url="https://t.me/codebotnetwork"),
-            InlineKeyboardButton("🎮 GAMES", url=f"https://t.me/{context.bot.username}")
-        ],
-        [
-            InlineKeyboardButton(
-                "➕ Add me to your group",
+            InlineKeyboardButton("➕ Add to Group",
                 url=f"https://t.me/{context.bot.username}?startgroup=true"
             )
         ]
@@ -93,43 +90,54 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await update.message.reply_photo(
         photo=START_IMAGE_URL,
-        caption=(
-            f"✨ 𝗛𝗲𝘆, *{user.first_name}* ~\n"
-            "💌 You're Talking To 𝓑𝓪𝓴𝓪, A _Sassy Cutie Girl_ 💕"
-        ),
-        reply_markup=InlineKeyboardMarkup(keyboard),
-        parse_mode="Markdown"
+        caption=f"✨ Hey *{user.first_name}*\n💌 I'm *Baka Bot*",
+        parse_mode="Markdown",
+        reply_markup=InlineKeyboardMarkup(keyboard)
     )
 
-# ================== BUTTON HANDLER ==================
+# ================== BUTTON ==================
 async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     await query.answer()
     if query.data == "talk_baka":
-        await query.message.reply_text("Main thik hu, tum kaise ho? 😊")
+        await query.message.reply_text("Haan bolo 😊")
 
-# ================== ERROR HANDLER ==================
+# ================== SAFE AI HANDLER ==================
+async def safe_ai_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """
+    ❗ FIX:
+    - AI sirf private chat me
+    - commands ignore
+    - typing loop nahi hoga
+    """
+    if update.effective_chat.type != "private":
+        return
+
+    if not update.message or not update.message.text:
+        return
+
+    await ai_message_handler(update, context)
+
+# ================== ERROR ==================
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
-    print(f"❌ Critical Bot Error: {context.error}")
+    logging.error(f"Bot error: {context.error}")
 
 # ================== MAIN ==================
 def main():
     app = Application.builder().token(BOT_TOKEN).build()
 
-    # Priority -1: Auto register
+    # ---------- AUTO REGISTER (LOWEST PRIORITY) ----------
     app.add_handler(
         MessageHandler(filters.ALL, auto_register_handler),
         group=-1
     )
 
-    # Core
+    # ---------- CORE ----------
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CallbackQueryHandler(button_handler))
-    app.add_error_handler(error_handler)
 
-    # Economy
+    # ---------- ECONOMY ----------
     app.add_handler(CommandHandler("bal", bal))
-    app.add_handler(CommandHandler("q", q))
     app.add_handler(CommandHandler("rob", rob))
     app.add_handler(CommandHandler("kill", kill))
     app.add_handler(CommandHandler("revive", revive))
@@ -142,12 +150,7 @@ def main():
     app.add_handler(CommandHandler("open", open_economy))
     app.add_handler(CommandHandler("close", close_economy))
 
-    # Fun & Social
-    app.add_handler(CommandHandler("items", items))
-    app.add_handler(CommandHandler("item", item))
-    app.add_handler(CommandHandler("gift", gift))
-    app.add_handler(CommandHandler("truth", get_truth))
-    app.add_handler(CommandHandler("dare", get_dare))
+    # ---------- FUN ----------
     app.add_handler(CommandHandler("slap", slap))
     app.add_handler(CommandHandler("hug", hug))
     app.add_handler(CommandHandler("punch", punch))
@@ -159,33 +162,42 @@ def main():
     app.add_handler(CommandHandler("brain", brain))
     app.add_handler(CommandHandler("id", id_cmd))
     app.add_handler(CommandHandler("couple", couple))
-    app.add_handler(CommandHandler("couples", couple))
+    app.add_handler(CommandHandler("items", items))
+    app.add_handler(CommandHandler("item", item))
+    app.add_handler(CommandHandler("gift", gift))
+    app.add_handler(CommandHandler("truth", get_truth))
+    app.add_handler(CommandHandler("dare", get_dare))
+    app.add_handler(CommandHandler("q", q))
 
-    # Swagat
+    # ---------- WELCOME ----------
     app.add_handler(CommandHandler("swagat", swagat))
-    app.add_handler(
-        MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome_new_member)
-    )
-    app.add_handler(
-        MessageHandler(filters.StatusUpdate.NEW_CHAT_MEMBERS, welcome)
-    )
+    app.add_handler(MessageHandler(
+        filters.StatusUpdate.NEW_CHAT_MEMBERS,
+        welcome_new_member
+    ))
+    app.add_handler(MessageHandler(
+        filters.StatusUpdate.NEW_CHAT_MEMBERS,
+        welcome
+    ))
 
-    # Modules
+    # ---------- MODULE REGISTERS ----------
     register_game_commands(app)
     register_logger(app)
     register_broadcast(app)
     register_admin_commands(app)
     register_radhe(app)
 
-    # AI
+    # ---------- AI ----------
     app.add_handler(CommandHandler("ask", ask_ai))
     app.add_handler(
-        MessageHandler(filters.TEXT & (~filters.COMMAND), ai_message_handler)
+        MessageHandler(filters.TEXT & ~filters.COMMAND, safe_ai_handler)
     )
 
-    print("🤖 Baka Bot is online")
+    # ---------- ERROR ----------
+    app.add_error_handler(error_handler)
 
-    app.run_polling(drop_pending_updates=True, allowed_updates=Update.ALL_TYPES)
+    print("✅ Baka Bot Online")
+    app.run_polling(drop_pending_updates=True)
 
 if __name__ == "__main__":
     main()
